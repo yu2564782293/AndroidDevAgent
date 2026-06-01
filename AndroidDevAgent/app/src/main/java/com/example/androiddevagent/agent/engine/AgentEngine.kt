@@ -80,7 +80,7 @@ class AgentEngine @Inject constructor(
             val response = try {
                 llmProvider.chatWithTools(condensed.messages, ToolDefinitions.allTools())
             } catch (e: Exception) {
-                eventStream.emit(AgentEvent.ErrorEvent("LLM call failed: ${e.message}"))
+                eventStream.emit(AgentEvent.ErrorEvent("LLM 调用失败: ${e.message}"))
                 break
             }
 
@@ -137,8 +137,7 @@ class AgentEngine @Inject constructor(
                             consecutiveBuildFailures++
                             if (consecutiveBuildFailures >= maxAutoFixAttempts) {
                                 eventStream.emit(AgentEvent.StuckDetectedEvent(
-                                    "Build has failed $consecutiveBuildFailures times in a row. " +
-                                    "Auto-fix attempts exhausted."
+                                    "构建已连续失败 $consecutiveBuildFailures 次，自动修复尝试已用尽。"
                                 ))
                                 break
                             }
@@ -179,9 +178,8 @@ class AgentEngine @Inject constructor(
                     StuckStrategy.SWITCH_APPROACH -> {
                         messages.add(ChatCompletionRequest.Message(
                             role = "user",
-                            content = "[System] You appear to be stuck: ${stuckState.reason}\n" +
-                                     "Please try a completely different approach. " +
-                                     "Do not repeat the same action."
+                            content = "[系统] 检测到您可能陷入循环: ${stuckState.reason}\n" +
+                                     "请尝试完全不同的方法，不要重复相同的操作。"
                         ))
                     }
                     StuckStrategy.ASK_USER -> {
@@ -198,24 +196,24 @@ class AgentEngine @Inject constructor(
         }
 
         if (iterations >= maxIterations) {
-            eventStream.emit(AgentEvent.StuckDetectedEvent("Reached maximum iterations ($maxIterations)"))
+            eventStream.emit(AgentEvent.StuckDetectedEvent("已达到最大迭代次数 ($maxIterations)"))
         }
     }
 
     private fun buildSummaryString(summary: com.example.androiddevagent.agent.memory.ProjectSummary): String {
         val sb = StringBuilder()
-        sb.append("Project Structure:\n${summary.structure}\n")
+        sb.append("项目结构:\n${summary.structure}\n")
         if (summary.keyFiles.isNotEmpty()) {
-            sb.append("Key Files:\n")
+            sb.append("关键文件:\n")
             summary.keyFiles.take(15).forEach { f ->
-                sb.append("- ${f.path}: ${f.summary} (${f.lineCount} lines)\n")
+                sb.append("- ${f.path}: ${f.summary} (${f.lineCount} 行)\n")
             }
         }
         if (summary.gradleDependencies.isNotEmpty()) {
-            sb.append("Dependencies:\n${summary.gradleDependencies}\n")
+            sb.append("依赖项:\n${summary.gradleDependencies}\n")
         }
         if (summary.manifestInfo.isNotEmpty()) {
-            sb.append("Manifest:\n${summary.manifestInfo}\n")
+            sb.append("清单文件:\n${summary.manifestInfo}\n")
         }
         return sb.toString()
     }

@@ -18,7 +18,8 @@ data class ProjectFilesUiState(
     val projectPath: String = "",
     val files: List<FileNode> = emptyList(),
     val isLoading: Boolean = false,
-    val expandedDirs: Set<String> = emptySet()
+    val expandedDirs: Set<String> = emptySet(),
+    val shouldOpenFolderPicker: Boolean = false
 )
 
 @HiltViewModel
@@ -44,7 +45,20 @@ class ProjectFilesViewModel @Inject constructor(
     }
 
     fun selectProject() {
-        // TODO: integrate SAF file picker
+        _uiState.value = _uiState.value.copy(shouldOpenFolderPicker = true)
+    }
+
+    fun onFolderPickerOpened() {
+        _uiState.value = _uiState.value.copy(shouldOpenFolderPicker = false)
+    }
+
+    fun setProjectPath(path: String) {
+        prefs.edit().putString("project_path", path).apply()
+        agentEngine.setProjectPath(path)
+        _uiState.value = ProjectFilesUiState(
+            projectPath = path,
+            files = listFiles(path, emptySet())
+        )
     }
 
     fun toggleDirectory(path: String) {

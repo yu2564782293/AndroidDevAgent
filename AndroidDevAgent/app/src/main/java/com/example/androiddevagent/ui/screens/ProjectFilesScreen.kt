@@ -1,5 +1,8 @@
 package com.example.androiddevagent.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,6 +39,25 @@ fun ProjectFilesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            val path = getRealPathFromUri(context, it)
+            if (path != null) {
+                viewModel.setProjectPath(path)
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.shouldOpenFolderPicker) {
+        if (uiState.shouldOpenFolderPicker) {
+            folderPicker.launch(null)
+            viewModel.onFolderPickerOpened()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -57,6 +80,12 @@ fun ProjectFilesScreen(
                             Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("打开")
+                        }
+                    } else {
+                        TextButton(onClick = { viewModel.selectProject() }) {
+                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("切换")
                         }
                     }
                 }
@@ -112,6 +141,15 @@ fun ProjectFilesScreen(
             }
         }
     }
+}
+
+private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
+    val docId = android.provider.DocumentsContract.getDocumentId(uri)
+    if (docId.startsWith("primary:")) {
+        val relativePath = docId.substringAfter("primary:")
+        return "/sdcard/$relativePath"
+    }
+    return null
 }
 
 @Composable

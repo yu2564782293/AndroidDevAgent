@@ -96,7 +96,7 @@ private fun EmptyHistoryState() {
 
 @Composable
 private fun TaskHistoryCard(task: TaskRecord) {
-    val timeFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("MM月dd日 HH:mm", Locale.CHINESE)
     val timeStr = timeFormat.format(Date(task.createdAt))
     val durationStr = formatDuration(task.durationMs)
 
