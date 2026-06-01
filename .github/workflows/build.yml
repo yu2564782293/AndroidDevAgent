@@ -28,6 +28,15 @@ jobs:
         run: |
           sdkmanager "build-tools;34.0.0"
           sdkmanager "platforms;android-34"
+          ls -la $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 || echo "aapt2 not found at ANDROID_SDK_ROOT"
+          ls -la /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 || echo "aapt2 not found at default path"
+
+      - name: Create symlink for aapt2
+        run: |
+          sudo mkdir -p /opt/android-sdk/build-tools/34.0.0/
+          sudo ln -s $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 /opt/android-sdk/build-tools/34.0.0/aapt2 || true
+          sudo ln -s /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 /opt/android-sdk/build-tools/34.0.0/aapt2 || true
+          ls -la /opt/android-sdk/build-tools/34.0.0/aapt2
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
