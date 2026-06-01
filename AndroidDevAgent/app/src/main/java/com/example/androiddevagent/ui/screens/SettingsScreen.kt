@@ -89,7 +89,7 @@ fun SettingsScreen(
                 singleLine = true
             )
 
-            HorizontalDivider()
+            Divider()
 
             Text("Project", style = MaterialTheme.typography.titleMedium)
 

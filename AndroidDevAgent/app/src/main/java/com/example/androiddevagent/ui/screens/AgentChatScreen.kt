@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -375,8 +376,8 @@ private fun InputBar(
             )
             Spacer(modifier = Modifier.width(8.dp))
             FloatingActionButton(
-                onClick = onSend,
-                enabled = enabled && text.isNotBlank()
+                onClick = { if (enabled && text.isNotBlank()) onSend() },
+                modifier = Modifier.alpha(if (enabled && text.isNotBlank()) 1f else 0.38f)
             ) {
                 Icon(Icons.Filled.Send, contentDescription = "Send")
             }
