@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_debug_error">调试错误</string>
+    <string name="action_design_architecture">设计架构</string>
+    <string name="action_explain_code">解释代码</string>
+    <string name="action_generate_code">生成代码</string>
+    <string name="app_name">Android Dev Agent</string>
+    <string name="btn_copy">复制</string>
+    <string name="hint_input_code">输入代码或需求描述...</string>
+    <string name="hint_select_language">选择编程语言</string>
+    <string name="tab_architecture">架构设计</string>
+    <string name="tab_code_explanation">代码解释</string>
+    <string name="tab_code_generation">代码生成</string>
+    <string name="tab_debugging">调试</string>
+    <string name="title_explanation">代码解释</string>
+    <string name="title_generated_code">生成的代码</string>
+    <string name="title_suggestions">建议</string>
+</resources>

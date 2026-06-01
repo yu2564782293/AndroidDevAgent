@@ -1,0 +1,18 @@
+R_DEF: Internal format may change without notice
+local
+string action_debug_error
+string action_design_architecture
+string action_explain_code
+string action_generate_code
+string app_name
+string btn_copy
+string hint_input_code
+string hint_select_language
+string tab_architecture
+string tab_code_explanation
+string tab_code_generation
+string tab_debugging
+string title_explanation
+string title_generated_code
+string title_suggestions
+xml network_security_config
