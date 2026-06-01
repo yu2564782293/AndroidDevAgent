@@ -15,10 +15,12 @@ import javax.inject.Inject
 class AgentEngine @Inject constructor(
     private val llmProvider: LlmProvider,
     private val toolExecutor: ToolExecutor,
-    private val eventStream: EventStream
+    private val eventStream: EventStream,
+    private val stuckDetector: StuckDetector
 ) {
 
     private val maxIterations = 20
+    private val maxAutoFixAttempts = 3
 
     fun run(task: String): Flow<AgentEvent> = flow {
         eventStream.clear()
@@ -38,6 +40,7 @@ class AgentEngine @Inject constructor(
 
         var iterations = 0
         val filesChanged = mutableListOf<String>()
+        var consecutiveBuildFailures = 0
 
         while (iterations++ < maxIterations) {
             val response = try {
@@ -55,7 +58,6 @@ class AgentEngine @Inject constructor(
 
             if (response.hasToolCalls()) {
                 val toolCalls = response.getToolCalls()
-                val toolCallMessages = toolCalls.map { it.toMessage() }
                 messages.add(ChatCompletionRequest.Message(
                     role = "assistant",
                     content = assistantMessage?.content,
@@ -79,6 +81,32 @@ class AgentEngine @Inject constructor(
                         }
                     }
 
+                    if (toolName == "gradle_build") {
+                        val buildSuccess = result.success
+                        eventStream.emit(AgentEvent.BuildResultEvent(
+                            success = buildSuccess,
+                            output = result.output
+                        ))
+
+                        if (buildSuccess) {
+                            consecutiveBuildFailures = 0
+                        } else {
+                            consecutiveBuildFailures++
+                            if (consecutiveBuildFailures >= maxAutoFixAttempts) {
+                                eventStream.emit(AgentEvent.StuckDetectedEvent(
+                                    "Build has failed $consecutiveBuildFailures times in a row. " +
+                                    "Auto-fix attempts exhausted."
+                                ))
+                                break
+                            }
+                            eventStream.emit(AgentEvent.AutoFixEvent(
+                                attempt = consecutiveBuildFailures,
+                                maxAttempts = maxAutoFixAttempts,
+                                errorSummary = result.output.take(300)
+                            ))
+                        }
+                    }
+
                     messages.add(ChatCompletionRequest.Message(
                         role = "tool",
                         content = result.output,
@@ -94,36 +122,33 @@ class AgentEngine @Inject constructor(
                 break
             }
 
-            val stuckState = detectStuck(eventStream.history)
-            if (stuckState != null) {
-                eventStream.emit(AgentEvent.StuckDetectedEvent(stuckState))
-                break
+            val stuckState = stuckDetector.detect(eventStream.history, iterations)
+            if (stuckState.isStuck) {
+                when (stuckState.strategy) {
+                    StuckStrategy.SWITCH_APPROACH -> {
+                        messages.add(ChatCompletionRequest.Message(
+                            role = "user",
+                            content = "[System] You appear to be stuck: ${stuckState.reason}\n" +
+                                     "Please try a completely different approach. " +
+                                     "Do not repeat the same action."
+                        ))
+                    }
+                    StuckStrategy.ASK_USER -> {
+                        eventStream.emit(AgentEvent.StuckDetectedEvent(stuckState.reason))
+                        break
+                    }
+                    StuckStrategy.ABORT -> {
+                        eventStream.emit(AgentEvent.StuckDetectedEvent(stuckState.reason))
+                        break
+                    }
+                    StuckStrategy.NONE -> { }
+                }
             }
         }
 
         if (iterations >= maxIterations) {
             eventStream.emit(AgentEvent.StuckDetectedEvent("Reached maximum iterations ($maxIterations)"))
         }
-    }
-
-    private fun detectStuck(history: List<AgentEvent>): String? {
-        val toolCalls = history.filterIsInstance<AgentEvent.ToolCallEvent>()
-        if (toolCalls.size >= 3) {
-            val last3 = toolCalls.takeLast(3)
-            if (last3.distinctBy { it.name + it.args.toString() }.size == 1) {
-                return "Agent is repeating the same action: ${last3.first().name}"
-            }
-        }
-
-        val toolResults = history.filterIsInstance<AgentEvent.ToolResultEvent>()
-        if (toolResults.size >= 3) {
-            val last3Results = toolResults.takeLast(3)
-            if (last3Results.all { !it.success } && last3Results.map { it.output }.distinct().size == 1) {
-                return "Agent keeps getting the same error and cannot fix it"
-            }
-        }
-
-        return null
     }
 
     private fun parseToolArgs(json: String): Map<String, String> {
@@ -135,13 +160,5 @@ class AgentEngine @Inject constructor(
         } catch (e: Exception) {
             emptyMap()
         }
-    }
-
-    private fun ChatCompletionRequest.ToolCall.toMessage(): ChatCompletionRequest.Message {
-        return ChatCompletionRequest.Message(
-            role = "assistant",
-            content = null,
-            toolCalls = listOf(this)
-        )
     }
 }

@@ -22,6 +22,11 @@ sealed class AgentEvent {
         val success: Boolean,
         val output: String
     ) : AgentEvent()
+    data class AutoFixEvent(
+        val attempt: Int,
+        val maxAttempts: Int,
+        val errorSummary: String
+    ) : AgentEvent()
     data class TaskCompleteEvent(
         val summary: String,
         val filesChanged: List<String>

@@ -30,6 +30,10 @@ class ToolExecutor @Inject constructor() {
             "edit_file" -> editFile(args)
             "list_files" -> listFiles(args)
             "delete_file" -> deleteFile(args)
+            "gradle_build" -> gradleBuild(args)
+            "run_tests" -> runTests(args)
+            "read_logcat" -> readLogcat(args)
+            "lint_check" -> lintCheck(args)
             else -> ToolResult("Unknown tool: ${call.function.name}", false)
         }
     }
@@ -139,6 +143,175 @@ class ToolExecutor @Inject constructor() {
             ToolResult("Deleted: $path", true)
         } else {
             ToolResult("Failed to delete: $path", false)
+        }
+    }
+
+    private fun gradleBuild(args: Map<String, String>): ToolResult {
+        val task = args["task"] ?: "assembleDebug"
+        val projectDir = File(projectPath)
+
+        if (!projectDir.exists()) {
+            return ToolResult("Project directory not found: $projectPath", false)
+        }
+
+        val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
+        if (!gradlew.exists()) {
+            return ToolResult("Gradle wrapper not found in project", false)
+        }
+
+        return try {
+            val process = ProcessBuilder()
+                .command(gradlew.absolutePath, task)
+                .directory(projectDir)
+                .redirectErrorStream(true)
+                .start()
+
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            if (process.exitValue() == 0) {
+                val summary = extractBuildSummary(output, true)
+                ToolResult("Build succeeded: $task\n$summary", true)
+            } else {
+                val errorSummary = extractErrorSummary(output)
+                ToolResult("Build failed: $task\n$errorSummary", false)
+            }
+        } catch (e: Exception) {
+            ToolResult("Build execution error: ${e.message}", false)
+        }
+    }
+
+    private fun runTests(args: Map<String, String>): ToolResult {
+        val testClass = args["test_class"]
+        val projectDir = File(projectPath)
+
+        if (!projectDir.exists()) {
+            return ToolResult("Project directory not found: $projectPath", false)
+        }
+
+        val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
+        if (!gradlew.exists()) {
+            return ToolResult("Gradle wrapper not found in project", false)
+        }
+
+        val task = if (testClass != null) {
+            "test --tests $testClass"
+        } else {
+            "test"
+        }
+
+        return try {
+            val process = ProcessBuilder()
+                .command(gradlew.absolutePath, *task.split(" ").toTypedArray())
+                .directory(projectDir)
+                .redirectErrorStream(true)
+                .start()
+
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            val testSummary = extractTestSummary(output)
+            if (process.exitValue() == 0) {
+                ToolResult("Tests passed\n$testSummary", true)
+            } else {
+                ToolResult("Tests failed\n$testSummary", false)
+            }
+        } catch (e: Exception) {
+            ToolResult("Test execution error: ${e.message}", false)
+        }
+    }
+
+    private fun readLogcat(args: Map<String, String>): ToolResult {
+        val filter = args["filter"] ?: ""
+        val lines = args["lines"]?.toIntOrNull() ?: 50
+
+        return try {
+            val command = mutableListOf("logcat", "-d", "-t", lines.toString())
+            if (filter.isNotEmpty()) {
+                command.addAll(listOf("-s", filter))
+            }
+
+            val process = ProcessBuilder()
+                .command(command)
+                .redirectErrorStream(true)
+                .start()
+
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            if (output.isBlank()) {
+                ToolResult("No logcat output available", true)
+            } else {
+                val filtered = if (filter.isNotEmpty()) {
+                    output.lines().filter { it.contains(filter, ignoreCase = true) }.take(lines)
+                } else {
+                    output.lines().take(lines)
+                }
+                ToolResult("Logcat (last $lines lines):\n${filtered.joinToString("\n")}", true)
+            }
+        } catch (e: Exception) {
+            ToolResult("Logcat read error: ${e.message}. Note: logcat requires a connected device or emulator.", false)
+        }
+    }
+
+    private fun lintCheck(args: Map<String, String>): ToolResult {
+        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
+        val file = File(projectPath, path)
+
+        if (!file.exists()) {
+            return ToolResult("File not found: $path", false)
+        }
+        if (!file.isFile) {
+            return ToolResult("Not a file: $path", false)
+        }
+
+        val content = file.readText()
+        val lintResult = quickLint(path, content)
+
+        return if (lintResult.passed) {
+            ToolResult("Lint check passed: $path", true)
+        } else {
+            val errorsText = lintResult.errors.joinToString("\n") { "  - $it" }
+            ToolResult("Lint check found issues in $path:\n$errorsText", false)
+        }
+    }
+
+    private fun extractErrorSummary(output: String): String {
+        val errorLines = output.lines().filter { line ->
+            line.contains("error:", ignoreCase = true) ||
+            line.contains("ERROR", ignoreCase = true) ||
+            line.startsWith("e:")
+        }
+
+        if (errorLines.isEmpty()) {
+            val lastLines = output.lines().takeLast(20)
+            return "No specific error lines found. Last output:\n${lastLines.joinToString("\n")}"
+        }
+
+        val distinctErrors = errorLines.distinctBy { it.trim() }.take(10)
+        return distinctErrors.joinToString("\n")
+    }
+
+    private fun extractBuildSummary(output: String, success: Boolean): String {
+        val summaryLines = output.lines().filter { line ->
+            line.contains("BUILD") ||
+            line.contains("Task :") && line.contains("seconds")
+        }.takeLast(5)
+        return summaryLines.joinToString("\n")
+    }
+
+    private fun extractTestSummary(output: String): String {
+        val summaryLines = output.lines().filter { line ->
+            line.contains("tests completed") ||
+            line.contains("tests passed") ||
+            line.contains("tests failed") ||
+            line.contains("Test ") && line.contains("PASSED") ||
+            line.contains("Test ") && line.contains("FAILED")
+        }.takeLast(10)
+        return if (summaryLines.isEmpty()) {
+            output.lines().takeLast(15).joinToString("\n")
+        } else {
+            summaryLines.joinToString("\n")
         }
     }
 

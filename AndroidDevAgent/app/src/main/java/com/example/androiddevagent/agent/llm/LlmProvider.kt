@@ -87,7 +87,11 @@ class LlmProvider @Inject constructor() {
         val lastToolResult = messages.lastOrNull { it.role == "tool" }?.content
 
         val content = if (lastToolResult != null) {
-            "I see the result. Let me continue working on the task."
+            if (lastToolResult.contains("Build", ignoreCase = true) || lastToolResult.contains("gradle", ignoreCase = true)) {
+                "I see the build result. Let me check if there are any issues."
+            } else {
+                "I see the result. Let me continue working on the task."
+            }
         } else {
             "I'll help you with that. Let me start by examining the project structure."
         }
@@ -101,13 +105,22 @@ class LlmProvider @Inject constructor() {
                     arguments = """{"path": "."}"""
                 )
             )
-        } else {
+        } else if (lastToolResult.contains("Directory", ignoreCase = true)) {
             ChatCompletionRequest.ToolCall(
                 id = "call_${System.currentTimeMillis()}",
                 type = "function",
                 function = ChatCompletionRequest.FunctionCall(
                     name = "read_file",
                     arguments = """{"path": "build.gradle"}"""
+                )
+            )
+        } else {
+            ChatCompletionRequest.ToolCall(
+                id = "call_${System.currentTimeMillis()}",
+                type = "function",
+                function = ChatCompletionRequest.FunctionCall(
+                    name = "gradle_build",
+                    arguments = """{"task": "assembleDebug"}"""
                 )
             )
         }

@@ -168,6 +168,15 @@ private fun EventBubble(event: AgentEvent) {
         is AgentEvent.TaskCompleteEvent -> {
             TaskCompleteBubble(event.summary, event.filesChanged)
         }
+        is AgentEvent.BuildResultEvent -> {
+            BuildResultBubble(event.success, event.output)
+        }
+        is AgentEvent.AutoFixEvent -> {
+            AutoFixBubble(event.attempt, event.maxAttempts, event.errorSummary)
+        }
+        is AgentEvent.LintResultEvent -> {
+            LintResultBubble(event.path, event.passed, event.errors)
+        }
         is AgentEvent.StuckDetectedEvent -> {
             WarningBubble(event.reason)
         }
@@ -295,6 +304,101 @@ private fun TaskCompleteBubble(summary: String, filesChanged: List<String>) {
             if (filesChanged.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Files changed: ${filesChanged.joinToString(", ")}", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BuildResultBubble(success: Boolean, output: String) {
+    val icon = if (success) Icons.Filled.CheckCircle else Icons.Filled.Build
+    val color = if (success) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.errorContainer
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = color),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    if (success) "Build Succeeded" else "Build Failed",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = output.take(400),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 8
+            )
+        }
+    }
+}
+
+@Composable
+private fun AutoFixBubble(attempt: Int, maxAttempts: Int, errorSummary: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "Auto-fix attempt $attempt/$maxAttempts",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorSummary.take(200),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 5,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LintResultBubble(path: String, passed: Boolean, errors: List<String>) {
+    val color = if (passed) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.errorContainer
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = color),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (passed) Icons.Filled.CheckCircle else Icons.Filled.BugReport,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "Lint: $path — ${if (passed) "Passed" else "${errors.size} issue(s)"}",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            if (!passed && errors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = errors.take(5).joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 5
+                )
             }
         }
     }
