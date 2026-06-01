@@ -1,6 +1,7 @@
 package com.example.androiddevagent.agent.tools
 
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
+import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -15,7 +16,8 @@ data class ToolResult(
 
 @Singleton
 class ToolExecutor @Inject constructor(
-    private val gitIntegration: GitIntegration
+    private val gitIntegration: GitIntegration,
+    private val projectSummaryGenerator: ProjectSummaryGenerator
 ) {
 
     private var projectPath: String = ""
@@ -40,6 +42,9 @@ class ToolExecutor @Inject constructor(
             "run_tests" -> runTests(args)
             "read_logcat" -> readLogcat(args)
             "lint_check" -> lintCheck(args)
+            "search_code" -> searchCode(args)
+            "analyze_project" -> analyzeProject()
+            "find_usages" -> findUsages(args)
             "git_commit" -> gitCommit(args)
             "git_diff" -> gitDiff(args)
             "git_revert" -> gitRevert()
@@ -321,6 +326,128 @@ class ToolExecutor @Inject constructor(
             output.lines().takeLast(15).joinToString("\n")
         } else {
             summaryLines.joinToString("\n")
+        }
+    }
+
+    private fun searchCode(args: Map<String, String>): ToolResult {
+        val query = args["query"] ?: return ToolResult("Missing 'query' parameter", false)
+        val filePattern = args["file_pattern"] ?: ""
+        val projectDir = File(projectPath)
+
+        if (!projectDir.exists()) {
+            return ToolResult("Project directory not found: $projectPath", false)
+        }
+
+        val results = mutableListOf<String>()
+        val extensions = if (filePattern.isNotEmpty()) {
+            listOf(filePattern)
+        } else {
+            listOf(".kt", ".java", ".xml", ".gradle", ".properties", ".kts")
+        }
+
+        projectDir.walk().forEach { file ->
+            if (!file.isFile) return@forEach
+            if (file.absolutePath.contains("/build/")) return@forEach
+            if (file.absolutePath.contains("/.gradle/")) return@forEach
+            if (file.absolutePath.contains("/.idea/")) return@forEach
+            if (extensions.none { ext -> file.name.endsWith(ext) }) return@forEach
+
+            try {
+                val lines = file.readLines()
+                val relativePath = file.relativeTo(projectDir).path
+                for ((index, line) in lines.withIndex()) {
+                    if (line.contains(query, ignoreCase = true)) {
+                        results.add("$relativePath:${index + 1}: ${line.trim().take(100)}")
+                        if (results.size >= 30) break
+                    }
+                }
+            } catch (e: Exception) {
+                // Skip unreadable files
+            }
+            if (results.size >= 30) return@forEach
+        }
+
+        return if (results.isEmpty()) {
+            ToolResult("No matches found for: $query", true)
+        } else {
+            ToolResult("Found ${results.size} match(es) for '$query':\n${results.joinToString("\n")}", true)
+        }
+    }
+
+    private fun analyzeProject(): ToolResult {
+        if (projectPath.isEmpty()) {
+            return ToolResult("Project path not set", false)
+        }
+
+        return try {
+            val summary = projectSummaryGenerator.generate(projectPath)
+            val sb = StringBuilder()
+            sb.append("Project Analysis\n")
+            sb.append("Structure:\n${summary.structure}\n")
+            if (summary.keyFiles.isNotEmpty()) {
+                sb.append("Key Files:\n")
+                summary.keyFiles.take(20).forEach { f ->
+                    sb.append("- ${f.path}: ${f.summary} (${f.lineCount} lines)\n")
+                }
+            }
+            if (summary.gradleDependencies.isNotEmpty()) {
+                sb.append("Dependencies:\n${summary.gradleDependencies}\n")
+            }
+            if (summary.manifestInfo.isNotEmpty()) {
+                sb.append("Manifest:\n${summary.manifestInfo}\n")
+            }
+            ToolResult(sb.toString(), true)
+        } catch (e: Exception) {
+            ToolResult("Project analysis failed: ${e.message}", false)
+        }
+    }
+
+    private fun findUsages(args: Map<String, String>): ToolResult {
+        val symbol = args["symbol"] ?: return ToolResult("Missing 'symbol' parameter", false)
+        val searchPath = args["path"] ?: "."
+        val projectDir = File(projectPath, searchPath)
+
+        if (!projectDir.exists()) {
+            return ToolResult("Directory not found: $searchPath", false)
+        }
+
+        val results = mutableListOf<String>()
+        val wordBoundaryPattern = Regex("\\b${Regex.escape(symbol)}\\b")
+
+        projectDir.walk().forEach { file ->
+            if (!file.isFile) return@forEach
+            if (file.absolutePath.contains("/build/")) return@forEach
+            if (file.absolutePath.contains("/.gradle/")) return@forEach
+            if (file.absolutePath.contains("/.idea/")) return@forEach
+            val ext = file.extension
+            if (ext !in listOf("kt", "java", "xml", "gradle", "kts")) return@forEach
+
+            try {
+                val lines = file.readLines()
+                val relativePath = file.relativeTo(File(projectPath)).path
+                for ((index, line) in lines.withIndex()) {
+                    if (wordBoundaryPattern.containsMatchIn(line)) {
+                        val isDeclaration = line.contains("fun $symbol") ||
+                                line.contains("class $symbol") ||
+                                line.contains("object $symbol") ||
+                                line.contains("val $symbol") ||
+                                line.contains("var $symbol") ||
+                                line.contains("interface $symbol")
+                        val tag = if (isDeclaration) "DECLARATION" else "USAGE"
+                        results.add("[$tag] $relativePath:${index + 1}: ${line.trim().take(100)}")
+                        if (results.size >= 30) break
+                    }
+                }
+            } catch (e: Exception) {
+                // Skip unreadable files
+            }
+            if (results.size >= 30) return@forEach
+        }
+
+        return if (results.isEmpty()) {
+            ToolResult("No usages found for symbol: $symbol", true)
+        } else {
+            ToolResult("Found ${results.size} occurrence(s) of '$symbol':\n${results.joinToString("\n")}", true)
         }
     }
 

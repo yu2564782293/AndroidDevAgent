@@ -14,6 +14,9 @@ object ToolDefinitions {
         runTestsTool(),
         readLogcatTool(),
         lintCheckTool(),
+        searchCodeTool(),
+        analyzeProjectTool(),
+        findUsagesTool(),
         gitCommitTool(),
         gitDiffTool(),
         gitRevertTool(),
@@ -188,6 +191,57 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("path")
+            )
+        )
+    )
+
+    private fun searchCodeTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "search_code",
+            description = "Search for a text pattern across all source files in the project. Returns matching file paths, line numbers, and context lines. Useful for finding where a class/function/variable is used.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "query" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The text pattern to search for"
+                    ),
+                    "file_pattern" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "File extension filter (optional, e.g. '.kt', '.xml'). Searches all source files if not specified."
+                    )
+                ),
+                required = listOf("query")
+            )
+        )
+    )
+
+    private fun analyzeProjectTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "analyze_project",
+            description = "Analyze the project structure and return a comprehensive summary including modules, dependencies, key files, and manifest info. Use this to understand the project before making changes.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun findUsagesTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "find_usages",
+            description = "Find all usages of a symbol (class name, function name, variable) across the project. Returns file paths and line numbers where the symbol is referenced.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "symbol" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The symbol name to search for (class, function, or variable name)"
+                    ),
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Directory to search in (optional, defaults to project root)"
+                    )
+                ),
+                required = listOf("symbol")
             )
         )
     )

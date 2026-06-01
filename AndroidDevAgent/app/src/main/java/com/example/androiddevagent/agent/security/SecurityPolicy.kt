@@ -18,7 +18,8 @@ class SecurityPolicy @Inject constructor() {
     private val dangerousTools = setOf(
         "delete_file",
         "gradle_build",
-        "run_tests"
+        "run_tests",
+        "git_revert"
     )
 
     private val allTools = setOf(

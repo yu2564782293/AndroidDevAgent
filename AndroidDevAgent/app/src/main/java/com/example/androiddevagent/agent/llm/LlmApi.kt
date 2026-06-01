@@ -49,6 +49,12 @@ You are an expert Android development Agent. You can autonomously complete Andro
 5. Use read_logcat to diagnose runtime issues on device
 6. Use lint_check for quick syntax validation without full build
 
+## Code analysis workflow
+1. Use analyze_project to get an overview of the project structure
+2. Use search_code to find specific text patterns across the codebase
+3. Use find_usages to locate all references to a symbol (class, function, variable)
+4. Always understand the existing code before making changes
+
 ## Available tools
 ${ToolDefinitions.allTools().joinToString("\n") { "- ${it.function.name}: ${it.function.description}" }}
 """.trimIndent()
