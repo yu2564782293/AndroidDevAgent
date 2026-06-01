@@ -141,7 +141,7 @@ fun DebuggingScreen(
             if (uiState.confidence > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
-                    progress = { uiState.confidence.toFloat() },
+                    progress = uiState.confidence.toFloat(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(

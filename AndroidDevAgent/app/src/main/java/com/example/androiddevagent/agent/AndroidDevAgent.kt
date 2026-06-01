@@ -176,7 +176,7 @@ class AndroidDevAgent @Inject constructor(
                 emit(AgentResponse.Loading("正在测试..."))
                 
                 // 运行测试
-                val testResult = runTests(compileResult.compiledCode, language)
+                val testResult = runTests(compileResult.compiledCode ?: code, language)
                 
                 val finalResult = CompileTestResult(
                     originalCode = code,
