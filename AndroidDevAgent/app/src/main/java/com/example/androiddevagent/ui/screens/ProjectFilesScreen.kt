@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -41,7 +40,7 @@ fun ProjectFilesScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Project Files", style = MaterialTheme.typography.titleMedium)
+                        Text("项目文件", style = MaterialTheme.typography.titleMedium)
                         if (uiState.projectPath.isNotEmpty()) {
                             Text(
                                 uiState.projectPath.substringAfterLast("/"),
@@ -56,7 +55,7 @@ fun ProjectFilesScreen(
                         TextButton(onClick = { viewModel.selectProject() }) {
                             Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Open")
+                            Text("打开")
                         }
                     }
                 }
@@ -73,11 +72,14 @@ fun ProjectFilesScreen(
             ) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = {
+                        searchQuery = it
+                        viewModel.searchFiles(it)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
-                    placeholder = { Text("Search files...", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text("搜索文件...", style = MaterialTheme.typography.bodySmall) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
@@ -126,13 +128,13 @@ private fun EmptyProjectState(onSelectProject: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "No Project Selected",
+                "未选择项目",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Select an Android project directory to browse files.",
+                "请选择一个 Android 项目目录以浏览文件",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -140,7 +142,7 @@ private fun EmptyProjectState(onSelectProject: () -> Unit) {
             Button(onClick = onSelectProject) {
                 Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Select Project")
+                Text("选择项目")
             }
         }
     }
@@ -169,15 +171,14 @@ private fun FileNodeItem(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val timeFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("MM月dd日 HH:mm", Locale.CHINESE)
     val timeStr = timeFormat.format(Date(node.lastModified))
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = if (node.isDirectory) 0.dp else 0.dp
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier

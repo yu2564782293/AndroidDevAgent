@@ -1,5 +1,8 @@
 package com.example.androiddevagent.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,6 +30,34 @@ fun AgentChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            val path = getRealPathFromUri(context, it)
+            if (path != null) {
+                viewModel.setProjectPath(path)
+            }
+        }
+    }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // TODO: process image for multimodal input
+        }
+    }
+
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            // TODO: process file attachment
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -33,7 +65,7 @@ fun AgentChatScreen(
                 title = {
                     Column {
                         Text(
-                            "Dev Agent",
+                            "开发助手",
                             style = MaterialTheme.typography.titleMedium
                         )
                         if (uiState.projectPath.isNotEmpty()) {
@@ -53,7 +85,7 @@ fun AgentChatScreen(
                         ) {
                             Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Stop", style = MaterialTheme.typography.labelMedium)
+                            Text("停止", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 },
@@ -71,7 +103,10 @@ fun AgentChatScreen(
             if (uiState.events.isEmpty() && !uiState.isRunning) {
                 EmptyChatState(
                     projectPath = uiState.projectPath,
-                    onProjectClick = { /* TODO: open project picker */ }
+                    onProjectClick = { folderPicker.launch(null) },
+                    onSuggestionClick = { suggestion ->
+                        inputText = suggestion
+                    }
                 )
             } else {
                 LazyColumn(
@@ -114,15 +149,28 @@ fun AgentChatScreen(
                     }
                 },
                 enabled = !uiState.isRunning,
-                onAttachFile = { /* TODO: file picker */ },
-                onAttachImage = { /* TODO: image picker */ }
+                onAttachFile = { filePicker.launch(arrayOf("*/*")) },
+                onAttachImage = { imagePicker.launch("image/*") }
             )
         }
     }
 }
 
+private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
+    val docId = android.provider.DocumentsContract.getDocumentId(uri)
+    if (docId.startsWith("primary:")) {
+        val relativePath = docId.substringAfter("primary:")
+        return "/sdcard/$relativePath"
+    }
+    return null
+}
+
 @Composable
-private fun EmptyChatState(projectPath: String, onProjectClick: () -> Unit) {
+private fun EmptyChatState(
+    projectPath: String,
+    onProjectClick: () -> Unit,
+    onSuggestionClick: (String) -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -138,22 +186,22 @@ private fun EmptyChatState(projectPath: String, onProjectClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "Android Dev Agent",
+                "Android 开发助手",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Describe a task and the Agent will execute it autonomously.",
+                "描述一个任务，助手将自主完成它",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(24.dp))
             if (projectPath.isEmpty()) {
-                OutlinedButton(onClick = onProjectClick) {
+                Button(onClick = onProjectClick) {
                     Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Project")
+                    Text("选择项目目录")
                 }
             } else {
                 AssistChip(
@@ -163,13 +211,13 @@ private fun EmptyChatState(projectPath: String, onProjectClick: () -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.height(32.dp))
-            Text("Try saying:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("试试说：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
-            SuggestionChip(onClick = {}, label = { Text("Add a login screen") })
+            SuggestionChip(onClick = { onSuggestionClick("添加一个登录界面") }, label = { Text("添加一个登录界面") })
             Spacer(modifier = Modifier.height(4.dp))
-            SuggestionChip(onClick = {}, label = { Text("Fix the build error") })
+            SuggestionChip(onClick = { onSuggestionClick("修复构建错误") }, label = { Text("修复构建错误") })
             Spacer(modifier = Modifier.height(4.dp))
-            SuggestionChip(onClick = {}, label = { Text("Add dark mode support") })
+            SuggestionChip(onClick = { onSuggestionClick("添加深色模式支持") }, label = { Text("添加深色模式支持") })
         }
     }
 }
@@ -240,6 +288,26 @@ private fun MessageBubble(content: String, isUser: Boolean) {
 private fun ToolCallBubble(name: String, args: Map<String, String>) {
     var expanded by remember { mutableStateOf(false) }
 
+    val displayName = when (name) {
+        "read_file" -> "读取文件"
+        "write_file" -> "写入文件"
+        "edit_file" -> "编辑文件"
+        "list_files" -> "列出文件"
+        "delete_file" -> "删除文件"
+        "gradle_build" -> "Gradle 构建"
+        "run_tests" -> "运行测试"
+        "read_logcat" -> "读取日志"
+        "lint_check" -> "语法检查"
+        "search_code" -> "搜索代码"
+        "analyze_project" -> "分析项目"
+        "find_usages" -> "查找引用"
+        "git_commit" -> "Git 提交"
+        "git_diff" -> "Git 差异"
+        "git_revert" -> "Git 回退"
+        "ask_user" -> "询问用户"
+        else -> name
+    }
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -258,7 +326,7 @@ private fun ToolCallBubble(name: String, args: Map<String, String>) {
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = name,
+                    text = displayName,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
@@ -328,7 +396,7 @@ private fun ToolResultBubble(output: String, success: Boolean) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    if (success) "Result" else "Error",
+                    if (success) "结果" else "错误",
                     style = MaterialTheme.typography.labelSmall
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -374,7 +442,7 @@ private fun TaskCompleteBubble(summary: String, filesChanged: List<String>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Task Complete", style = MaterialTheme.typography.titleSmall)
+                Text("任务完成", style = MaterialTheme.typography.titleSmall)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(summary, style = MaterialTheme.typography.bodySmall)
@@ -384,7 +452,7 @@ private fun TaskCompleteBubble(summary: String, filesChanged: List<String>) {
                     Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "${filesChanged.size} file(s) changed",
+                        "${filesChanged.size} 个文件已修改",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -399,7 +467,7 @@ private fun TaskCompleteBubble(summary: String, filesChanged: List<String>) {
                 }
                 if (filesChanged.size > 5) {
                     Text(
-                        "  +${filesChanged.size - 5} more",
+                        "  及其他 ${filesChanged.size - 5} 个文件",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
                     )
@@ -425,7 +493,7 @@ private fun BuildResultBubble(success: Boolean, output: String) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    if (success) "Build Succeeded" else "Build Failed",
+                    if (success) "构建成功" else "构建失败",
                     style = MaterialTheme.typography.labelMedium
                 )
             }
@@ -451,7 +519,7 @@ private fun AutoFixBubble(attempt: Int, maxAttempts: Int, errorSummary: String) 
             Icon(Icons.Filled.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                "Auto-fix attempt $attempt/$maxAttempts",
+                "自动修复 第 $attempt/$maxAttempts 次",
                 style = MaterialTheme.typography.labelMedium
             )
         }
@@ -476,7 +544,7 @@ private fun LintResultBubble(path: String, passed: Boolean, errors: List<String>
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                "Lint: $path — ${if (passed) "Passed" else "${errors.size} issue(s)"}",
+                "语法检查: $path — ${if (passed) "通过" else "${errors.size} 个问题"}",
                 style = MaterialTheme.typography.labelMedium
             )
         }
@@ -526,7 +594,7 @@ private fun ConfirmationBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Confirm: ${event.name}", style = MaterialTheme.typography.titleSmall)
+                Text("确认操作: ${event.name}", style = MaterialTheme.typography.titleSmall)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -536,8 +604,8 @@ private fun ConfirmationBar(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onDeny) { Text("Deny") }
-                Button(onClick = onConfirm) { Text("Confirm") }
+                OutlinedButton(onClick = onDeny) { Text("拒绝") }
+                Button(onClick = onConfirm) { Text("确认") }
             }
         }
     }
@@ -568,7 +636,7 @@ private fun EnhancedInputBar(
             ) {
                 Icon(
                     Icons.Filled.Image,
-                    contentDescription = "Attach image",
+                    contentDescription = "添加图片",
                     modifier = Modifier.size(20.dp),
                     tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -580,7 +648,7 @@ private fun EnhancedInputBar(
             ) {
                 Icon(
                     Icons.Filled.AttachFile,
-                    contentDescription = "Attach file",
+                    contentDescription = "添加文件",
                     modifier = Modifier.size(20.dp),
                     tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -589,7 +657,7 @@ private fun EnhancedInputBar(
                 value = text,
                 onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Describe a task...", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("描述一个任务...", style = MaterialTheme.typography.bodySmall) },
                 maxLines = 4,
                 enabled = enabled,
                 shape = RoundedCornerShape(20.dp),
@@ -603,7 +671,7 @@ private fun EnhancedInputBar(
                     .alpha(if (enabled && text.isNotBlank()) 1f else 0.38f),
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Filled.Send, contentDescription = "Send", modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Send, contentDescription = "发送", modifier = Modifier.size(18.dp))
             }
         }
     }

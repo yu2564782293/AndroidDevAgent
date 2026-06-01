@@ -1,6 +1,8 @@
 package com.example.androiddevagent.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -26,6 +28,7 @@ fun SettingsScreen(
     var showApiKey by remember { mutableStateOf(false) }
     var projectPath by remember { mutableStateOf(uiState.projectPath) }
     var securityLevel by remember { mutableStateOf(uiState.securityLevel) }
+    var savedVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         apiKey = uiState.apiKey
@@ -38,7 +41,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") }
+                title = { Text("设置") }
             )
         }
     ) { paddingValues ->
@@ -46,15 +49,16 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("LLM Configuration", style = MaterialTheme.typography.titleMedium)
+            Text("模型配置", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key") },
+                label = { Text("API 密钥") },
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = if (showApiKey) androidx.compose.ui.text.input.VisualTransformation.None
                 else androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -62,7 +66,7 @@ fun SettingsScreen(
                     IconButton(onClick = { showApiKey = !showApiKey }) {
                         Icon(
                             if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (showApiKey) "Hide" else "Show"
+                            contentDescription = if (showApiKey) "隐藏" else "显示"
                         )
                     }
                 },
@@ -72,7 +76,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("Base URL") },
+                label = { Text("接口地址") },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(LlmConstants.DEFAULT_BASE_URL) },
                 singleLine = true
@@ -81,37 +85,37 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = modelName,
                 onValueChange = { modelName = it },
-                label = { Text("Model Name") },
+                label = { Text("模型名称") },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(LlmConstants.DEFAULT_MODEL) },
                 singleLine = true
             )
 
-            Divider()
+            HorizontalDivider()
 
-            Text("Project", style = MaterialTheme.typography.titleMedium)
+            Text("项目", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = projectPath,
                 onValueChange = { projectPath = it },
-                label = { Text("Project Path") },
+                label = { Text("项目路径") },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("/sdcard/MyProject") },
                 singleLine = true
             )
 
             Text(
-                "Enter the absolute path to your Android project directory on the device.",
+                "输入设备上 Android 项目目录的绝对路径",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Divider()
+            HorizontalDivider()
 
-            Text("Security", style = MaterialTheme.typography.titleMedium)
+            Text("安全策略", style = MaterialTheme.typography.titleMedium)
 
             Text(
-                "Control when the Agent needs your confirmation before executing actions.",
+                "控制 Agent 执行操作前是否需要您的确认",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -126,25 +130,28 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     viewModel.saveSettings(apiKey, baseUrl, modelName, projectPath, securityLevel)
+                    savedVisible = true
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save Settings")
+                Text("保存设置")
             }
 
-            if (uiState.saved) {
+            if (savedVisible && uiState.saved) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
                     Text(
-                        "Settings saved!",
+                        "设置已保存！",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -157,22 +164,22 @@ private fun SecurityLevelSelector(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SecurityLevelOption(
             level = SecurityLevel.AUTO_CONFIRM,
-            title = "Auto Confirm",
-            description = "Agent executes all actions automatically (fastest, least safe)",
+            title = "自动确认",
+            description = "Agent 自动执行所有操作（最快，安全性最低）",
             selected = selected == SecurityLevel.AUTO_CONFIRM,
             onSelect = { onSelected(SecurityLevel.AUTO_CONFIRM) }
         )
         SecurityLevelOption(
             level = SecurityLevel.DANGEROUS_CONFIRM,
-            title = "Confirm Dangerous",
-            description = "Only confirm dangerous actions like delete and build (recommended)",
+            title = "危险操作确认",
+            description = "仅确认删除、构建等危险操作（推荐）",
             selected = selected == SecurityLevel.DANGEROUS_CONFIRM,
             onSelect = { onSelected(SecurityLevel.DANGEROUS_CONFIRM) }
         )
         SecurityLevelOption(
             level = SecurityLevel.ALL_CONFIRM,
-            title = "Confirm All",
-            description = "Confirm every action before execution (safest, slowest)",
+            title = "全部确认",
+            description = "执行任何操作前都需要确认（最安全，最慢）",
             selected = selected == SecurityLevel.ALL_CONFIRM,
             onSelect = { onSelected(SecurityLevel.ALL_CONFIRM) }
         )

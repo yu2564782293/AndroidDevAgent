@@ -43,7 +43,7 @@ fun TaskHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Task History", style = MaterialTheme.typography.titleMedium) }
+                title = { Text("任务历史", style = MaterialTheme.typography.titleMedium) }
             )
         }
     ) { paddingValues ->
@@ -80,13 +80,13 @@ private fun EmptyHistoryState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "No Tasks Yet",
+                "暂无任务",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Your completed tasks will appear here.",
+                "您完成的任务将显示在这里",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -145,7 +145,7 @@ private fun TaskHistoryCard(task: TaskRecord) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.DataUsage, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("${task.tokenUsage} tokens", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace)
+                        Text("${task.tokenUsage} 令牌", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace)
                     }
                 }
             }
@@ -155,7 +155,7 @@ private fun TaskHistoryCard(task: TaskRecord) {
                     Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = statusColor)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "${task.filesChanged.size} file(s) changed",
+                        "${task.filesChanged.size} 个文件已修改",
                         style = MaterialTheme.typography.labelSmall,
                         color = statusColor
                     )
@@ -170,7 +170,7 @@ private fun TaskHistoryCard(task: TaskRecord) {
                 }
                 if (task.filesChanged.size > 3) {
                     Text(
-                        "  +${task.filesChanged.size - 3} more",
+                        "  及其他 ${task.filesChanged.size - 3} 个文件",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
