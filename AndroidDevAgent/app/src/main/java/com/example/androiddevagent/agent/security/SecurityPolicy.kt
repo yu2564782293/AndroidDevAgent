@@ -53,12 +53,12 @@ class SecurityPolicy @Inject constructor() {
 
     fun getRiskDescription(toolCall: ChatCompletionRequest.ToolCall): String {
         return when (toolCall.function.name) {
-            "delete_file" -> "This will permanently delete a file. This action cannot be undone."
-            "gradle_build" -> "This will execute a Gradle build which may take time and modify build outputs."
-            "run_tests" -> "This will execute tests which may modify test output files."
-            "write_file" -> "This will create or overwrite a file."
-            "edit_file" -> "This will modify an existing file."
-            else -> "This action will be executed on the project."
+            "delete_file" -> "此操作将永久删除文件，无法撤销。"
+            "gradle_build" -> "此操作将执行 Gradle 构建，可能需要较长时间并修改构建输出。"
+            "run_tests" -> "此操作将运行测试，可能修改测试输出文件。"
+            "write_file" -> "此操作将创建或覆盖文件。"
+            "edit_file" -> "此操作将修改现有文件。"
+            else -> "此操作将在项目上执行。"
         }
     }
 }

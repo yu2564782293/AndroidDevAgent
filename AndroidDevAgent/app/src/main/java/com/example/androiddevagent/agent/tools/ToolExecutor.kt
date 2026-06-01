@@ -48,19 +48,19 @@ class ToolExecutor @Inject constructor(
             "git_commit" -> gitCommit(args)
             "git_diff" -> gitDiff(args)
             "git_revert" -> gitRevert()
-            else -> ToolResult("Unknown tool: ${call.function.name}", false)
+            else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
 
     private fun readFile(args: Map<String, String>): ToolResult {
-        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
         val file = File(projectPath, path)
 
         if (!file.exists()) {
-            return ToolResult("File not found: $path", false)
+            return ToolResult("文件不存在: $path", false)
         }
         if (!file.isFile) {
-            return ToolResult("Not a file: $path", false)
+            return ToolResult("不是文件: $path", false)
         }
 
         val lines = file.readLines()
@@ -72,45 +72,45 @@ class ToolExecutor @Inject constructor(
         }.joinToString("\n")
 
         return ToolResult(
-            "File: $path (lines $startLine-$endLine of ${lines.size})\n$content",
+            "文件: $path (第 $startLine-$endLine 行，共 ${lines.size} 行)\n$content",
             true
         )
     }
 
     private fun writeFile(args: Map<String, String>): ToolResult {
-        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
-        val content = args["content"] ?: return ToolResult("Missing 'content' parameter", false)
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
+        val content = args["content"] ?: return ToolResult("缺少 'content' 参数", false)
         val file = File(projectPath, path)
 
         file.parentFile?.mkdirs()
         file.writeText(content)
 
         val lineCount = content.lines().size
-        return ToolResult("Written successfully: $path ($lineCount lines)", true)
+        return ToolResult("写入成功: $path ($lineCount 行)", true)
     }
 
     private fun editFile(args: Map<String, String>): ToolResult {
-        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
-        val oldText = args["old_text"] ?: return ToolResult("Missing 'old_text' parameter", false)
-        val newText = args["new_text"] ?: return ToolResult("Missing 'new_text' parameter", false)
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
+        val oldText = args["old_text"] ?: return ToolResult("缺少 'old_text' 参数", false)
+        val newText = args["new_text"] ?: return ToolResult("缺少 'new_text' 参数", false)
         val file = File(projectPath, path)
 
         if (!file.exists()) {
-            return ToolResult("File not found: $path", false)
+            return ToolResult("文件不存在: $path", false)
         }
 
         val content = file.readText()
         if (!content.contains(oldText)) {
             val preview = content.take(500)
             return ToolResult(
-                "old_text not found in $path. Make sure the text matches exactly.\nFile preview:\n$preview",
+                "在 $path 中未找到要替换的文本，请确保文本完全匹配。\n文件预览:\n$preview",
                 false
             )
         }
 
         if (content.indexOf(oldText) != content.lastIndexOf(oldText)) {
             return ToolResult(
-                "old_text appears multiple times in $path. Please provide more context to make it unique.",
+                "要替换的文本在 $path 中出现多次，请提供更多上下文使其唯一。",
                 false
             )
         }
@@ -122,13 +122,13 @@ class ToolExecutor @Inject constructor(
         if (!lintResult.passed) {
             file.writeText(content)
             return ToolResult(
-                "Edit caused syntax issues, auto-reverted:\n${lintResult.errors.joinToString("\n")}\nPlease fix and retry.",
+                "编辑导致语法问题，已自动回滚:\n${lintResult.errors.joinToString("\n")}\n请修复后重试。",
                 false
             )
         }
 
         val lineCount = newContent.lines().size
-        return ToolResult("Edited successfully: $path ($lineCount lines)", true)
+        return ToolResult("编辑成功: $path ($lineCount 行)", true)
     }
 
     private fun listFiles(args: Map<String, String>): ToolResult {
@@ -137,26 +137,26 @@ class ToolExecutor @Inject constructor(
         val dir = File(projectPath, path)
 
         if (!dir.exists() || !dir.isDirectory) {
-            return ToolResult("Directory not found: $path", false)
+            return ToolResult("目录不存在: $path", false)
         }
 
         val tree = buildTree(dir, maxDepth, 0)
-        return ToolResult("Directory: $path\n$tree", true)
+        return ToolResult("目录: $path\n$tree", true)
     }
 
     private fun deleteFile(args: Map<String, String>): ToolResult {
-        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
         val file = File(projectPath, path)
 
         if (!file.exists()) {
-            return ToolResult("File not found: $path", false)
+            return ToolResult("文件不存在: $path", false)
         }
 
         val deleted = file.delete()
         return if (deleted) {
-            ToolResult("Deleted: $path", true)
+            ToolResult("已删除: $path", true)
         } else {
-            ToolResult("Failed to delete: $path", false)
+            ToolResult("删除失败: $path", false)
         }
     }
 
@@ -165,12 +165,12 @@ class ToolExecutor @Inject constructor(
         val projectDir = File(projectPath)
 
         if (!projectDir.exists()) {
-            return ToolResult("Project directory not found: $projectPath", false)
+            return ToolResult("项目目录不存在: $projectPath", false)
         }
 
         val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
         if (!gradlew.exists()) {
-            return ToolResult("Gradle wrapper not found in project", false)
+            return ToolResult("项目中未找到 Gradle 包装器", false)
         }
 
         return try {
@@ -185,13 +185,13 @@ class ToolExecutor @Inject constructor(
 
             if (process.exitValue() == 0) {
                 val summary = extractBuildSummary(output, true)
-                ToolResult("Build succeeded: $task\n$summary", true)
+                ToolResult("构建成功: $task\n$summary", true)
             } else {
                 val errorSummary = extractErrorSummary(output)
-                ToolResult("Build failed: $task\n$errorSummary", false)
+                ToolResult("构建失败: $task\n$errorSummary", false)
             }
         } catch (e: Exception) {
-            ToolResult("Build execution error: ${e.message}", false)
+            ToolResult("构建执行错误: ${e.message}", false)
         }
     }
 
@@ -200,12 +200,12 @@ class ToolExecutor @Inject constructor(
         val projectDir = File(projectPath)
 
         if (!projectDir.exists()) {
-            return ToolResult("Project directory not found: $projectPath", false)
+            return ToolResult("项目目录不存在: $projectPath", false)
         }
 
         val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
         if (!gradlew.exists()) {
-            return ToolResult("Gradle wrapper not found in project", false)
+            return ToolResult("项目中未找到 Gradle 包装器", false)
         }
 
         val task = if (testClass != null) {
@@ -226,12 +226,12 @@ class ToolExecutor @Inject constructor(
 
             val testSummary = extractTestSummary(output)
             if (process.exitValue() == 0) {
-                ToolResult("Tests passed\n$testSummary", true)
+                ToolResult("测试通过\n$testSummary", true)
             } else {
-                ToolResult("Tests failed\n$testSummary", false)
+                ToolResult("测试失败\n$testSummary", false)
             }
         } catch (e: Exception) {
-            ToolResult("Test execution error: ${e.message}", false)
+            ToolResult("测试执行错误: ${e.message}", false)
         }
     }
 
@@ -254,39 +254,39 @@ class ToolExecutor @Inject constructor(
             process.waitFor()
 
             if (output.isBlank()) {
-                ToolResult("No logcat output available", true)
+                ToolResult("暂无 Logcat 输出", true)
             } else {
                 val filtered = if (filter.isNotEmpty()) {
                     output.lines().filter { it.contains(filter, ignoreCase = true) }.take(lines)
                 } else {
                     output.lines().take(lines)
                 }
-                ToolResult("Logcat (last $lines lines):\n${filtered.joinToString("\n")}", true)
+                ToolResult("Logcat (最近 $lines 行):\n${filtered.joinToString("\n")}", true)
             }
         } catch (e: Exception) {
-            ToolResult("Logcat read error: ${e.message}. Note: logcat requires a connected device or emulator.", false)
+            ToolResult("Logcat 读取错误: ${e.message}。注意: logcat 需要连接设备或模拟器。", false)
         }
     }
 
     private fun lintCheck(args: Map<String, String>): ToolResult {
-        val path = args["path"] ?: return ToolResult("Missing 'path' parameter", false)
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
         val file = File(projectPath, path)
 
         if (!file.exists()) {
-            return ToolResult("File not found: $path", false)
+            return ToolResult("文件不存在: $path", false)
         }
         if (!file.isFile) {
-            return ToolResult("Not a file: $path", false)
+            return ToolResult("不是文件: $path", false)
         }
 
         val content = file.readText()
         val lintResult = quickLint(path, content)
 
         return if (lintResult.passed) {
-            ToolResult("Lint check passed: $path", true)
+            ToolResult("语法检查通过: $path", true)
         } else {
             val errorsText = lintResult.errors.joinToString("\n") { "  - $it" }
-            ToolResult("Lint check found issues in $path:\n$errorsText", false)
+            ToolResult("$path 语法检查发现问题:\n$errorsText", false)
         }
     }
 
@@ -299,7 +299,7 @@ class ToolExecutor @Inject constructor(
 
         if (errorLines.isEmpty()) {
             val lastLines = output.lines().takeLast(20)
-            return "No specific error lines found. Last output:\n${lastLines.joinToString("\n")}"
+            return "未找到具体错误行。最后输出:\n${lastLines.joinToString("\n")}"
         }
 
         val distinctErrors = errorLines.distinctBy { it.trim() }.take(10)
@@ -330,12 +330,12 @@ class ToolExecutor @Inject constructor(
     }
 
     private fun searchCode(args: Map<String, String>): ToolResult {
-        val query = args["query"] ?: return ToolResult("Missing 'query' parameter", false)
+        val query = args["query"] ?: return ToolResult("缺少 'query' 参数", false)
         val filePattern = args["file_pattern"] ?: ""
         val projectDir = File(projectPath)
 
         if (!projectDir.exists()) {
-            return ToolResult("Project directory not found: $projectPath", false)
+            return ToolResult("项目目录不存在: $projectPath", false)
         }
 
         val results = mutableListOf<String>()
@@ -361,54 +361,53 @@ class ToolExecutor @Inject constructor(
                         if (results.size >= 30) break
                     }
                 }
-            } catch (e: Exception) {
-                // Skip unreadable files
+            } catch (_: Exception) {
             }
             if (results.size >= 30) return@forEach
         }
 
         return if (results.isEmpty()) {
-            ToolResult("No matches found for: $query", true)
+            ToolResult("未找到匹配: $query", true)
         } else {
-            ToolResult("Found ${results.size} match(es) for '$query':\n${results.joinToString("\n")}", true)
+            ToolResult("找到 ${results.size} 处匹配 '$query':\n${results.joinToString("\n")}", true)
         }
     }
 
     private fun analyzeProject(): ToolResult {
         if (projectPath.isEmpty()) {
-            return ToolResult("Project path not set", false)
+            return ToolResult("未设置项目路径", false)
         }
 
         return try {
             val summary = projectSummaryGenerator.generate(projectPath)
             val sb = StringBuilder()
-            sb.append("Project Analysis\n")
-            sb.append("Structure:\n${summary.structure}\n")
+            sb.append("项目分析\n")
+            sb.append("结构:\n${summary.structure}\n")
             if (summary.keyFiles.isNotEmpty()) {
-                sb.append("Key Files:\n")
+                sb.append("关键文件:\n")
                 summary.keyFiles.take(20).forEach { f ->
-                    sb.append("- ${f.path}: ${f.summary} (${f.lineCount} lines)\n")
+                    sb.append("- ${f.path}: ${f.summary} (${f.lineCount} 行)\n")
                 }
             }
             if (summary.gradleDependencies.isNotEmpty()) {
-                sb.append("Dependencies:\n${summary.gradleDependencies}\n")
+                sb.append("依赖项:\n${summary.gradleDependencies}\n")
             }
             if (summary.manifestInfo.isNotEmpty()) {
-                sb.append("Manifest:\n${summary.manifestInfo}\n")
+                sb.append("清单文件:\n${summary.manifestInfo}\n")
             }
             ToolResult(sb.toString(), true)
         } catch (e: Exception) {
-            ToolResult("Project analysis failed: ${e.message}", false)
+            ToolResult("项目分析失败: ${e.message}", false)
         }
     }
 
     private fun findUsages(args: Map<String, String>): ToolResult {
-        val symbol = args["symbol"] ?: return ToolResult("Missing 'symbol' parameter", false)
+        val symbol = args["symbol"] ?: return ToolResult("缺少 'symbol' 参数", false)
         val searchPath = args["path"] ?: "."
         val projectDir = File(projectPath, searchPath)
 
         if (!projectDir.exists()) {
-            return ToolResult("Directory not found: $searchPath", false)
+            return ToolResult("目录不存在: $searchPath", false)
         }
 
         val results = mutableListOf<String>()
@@ -433,31 +432,30 @@ class ToolExecutor @Inject constructor(
                                 line.contains("val $symbol") ||
                                 line.contains("var $symbol") ||
                                 line.contains("interface $symbol")
-                        val tag = if (isDeclaration) "DECLARATION" else "USAGE"
+                        val tag = if (isDeclaration) "声明" else "引用"
                         results.add("[$tag] $relativePath:${index + 1}: ${line.trim().take(100)}")
                         if (results.size >= 30) break
                     }
                 }
-            } catch (e: Exception) {
-                // Skip unreadable files
+            } catch (_: Exception) {
             }
             if (results.size >= 30) return@forEach
         }
 
         return if (results.isEmpty()) {
-            ToolResult("No usages found for symbol: $symbol", true)
+            ToolResult("未找到符号引用: $symbol", true)
         } else {
-            ToolResult("Found ${results.size} occurrence(s) of '$symbol':\n${results.joinToString("\n")}", true)
+            ToolResult("找到 ${results.size} 处 '$symbol' 的引用:\n${results.joinToString("\n")}", true)
         }
     }
 
     private fun gitCommit(args: Map<String, String>): ToolResult {
-        val message = args["message"] ?: return ToolResult("Missing 'message' parameter", false)
+        val message = args["message"] ?: return ToolResult("缺少 'message' 参数", false)
         val result = gitIntegration.autoCommit(message)
         return if (result.success) {
-            ToolResult("Committed: ${result.output.take(200)}", true)
+            ToolResult("已提交: ${result.output.take(200)}", true)
         } else {
-            ToolResult("Git commit failed: ${result.output}", false)
+            ToolResult("Git 提交失败: ${result.output}", false)
         }
     }
 
@@ -465,18 +463,18 @@ class ToolExecutor @Inject constructor(
         val stat = args["stat"]?.toBoolean() ?: true
         val result = if (stat) gitIntegration.getDiffStat() else gitIntegration.getDiff()
         return if (result.success) {
-            ToolResult("Git diff:\n${result.output.take(1000)}", true)
+            ToolResult("Git 差异:\n${result.output.take(1000)}", true)
         } else {
-            ToolResult("Git diff failed: ${result.output}", false)
+            ToolResult("Git 差异获取失败: ${result.output}", false)
         }
     }
 
     private fun gitRevert(): ToolResult {
         val result = gitIntegration.revertLastCommit()
         return if (result.success) {
-            ToolResult("Reverted last commit: ${result.output.take(200)}", true)
+            ToolResult("已回退上次提交: ${result.output.take(200)}", true)
         } else {
-            ToolResult("Git revert failed: ${result.output}", false)
+            ToolResult("Git 回退失败: ${result.output}", false)
         }
     }
 
@@ -505,12 +503,12 @@ class ToolExecutor @Inject constructor(
                 val openBraces = content.count { it == '{' }
                 val closeBraces = content.count { it == '}' }
                 if (openBraces != closeBraces) {
-                    errors.add("Unbalanced braces: $openBraces open, $closeBraces close")
+                    errors.add("大括号不匹配: $openBraces 个开, $closeBraces 个闭")
                 }
                 val openParens = content.count { it == '(' }
                 val closeParens = content.count { it == ')' }
                 if (openParens != closeParens) {
-                    errors.add("Unbalanced parentheses: $openParens open, $closeParens close")
+                    errors.add("圆括号不匹配: $openParens 个开, $closeParens 个闭")
                 }
             }
             "xml" -> {
@@ -518,7 +516,7 @@ class ToolExecutor @Inject constructor(
                 val closeTags = Regex("</[a-zA-Z][a-zA-Z0-9]*>").findAll(content).count()
                 val selfClosing = Regex("<[a-zA-Z][a-zA-Z0-9]*[^>]*/>").findAll(content).count()
                 if (openTags - selfClosing != closeTags) {
-                    errors.add("Unbalanced XML tags: $openTags open, $closeTags close, $selfClosing self-closing")
+                    errors.add("XML 标签不匹配: $openTags 个开标签, $closeTags 个闭标签, $selfClosing 个自闭合")
                 }
             }
         }

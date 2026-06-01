@@ -24,6 +24,86 @@
 
 ---
 
+## 一-B、P0-Critical — 用户实测发现的严重 Bug（已修复 ✅）
+
+> 以下问题由用户实际安装测试后发现，属于"用了就想卸载"级别的严重缺陷
+
+### C.1 设置页面无法滚动 + 保存按钮不可见
+
+**问题**：设置页面内容超出屏幕高度，但没有添加滚动支持，导致底部的"保存设置"按钮完全不可见、不可操作。
+
+**修复**：`SettingsScreen.kt` 添加 `verticalScroll(rememberScrollState())`，使整个设置页面可滚动。
+
+**状态**：✅ 已修复
+
+---
+
+### C.2 首页按钮点击无反应
+
+**问题**：首页的 SuggestionChip（"添加一个登录界面"等）点击后没有任何效果，"选择项目目录"按钮也无法触发文件夹选择器。
+
+**修复**：
+- SuggestionChip 添加 `onClick` 回调，将建议文本填充到输入框
+- "选择项目目录"使用 SAF `OpenDocumentTree` 选择项目文件夹
+- 选择后通过 `getRealPathFromUri()` 转换为实际路径
+
+**状态**：✅ 已修复
+
+---
+
+### C.3 首次启动未索要必要权限
+
+**问题**：App 需要存储权限才能读写项目文件，但首次启动时没有主动向用户请求权限，导致功能静默失败。
+
+**修复**：
+- `MainActivity.kt` 添加 `LaunchedEffect(Unit)` 在首次启动时检测并请求权限
+- Android 13+：请求 `READ_MEDIA_IMAGES`
+- Android 12 及以下：请求 `READ/WRITE_EXTERNAL_STORAGE`
+- 权限被拒且为 Android 11+：引导用户到系统设置页手动授权 `MANAGE_EXTERNAL_STORAGE`
+
+**状态**：✅ 已修复
+
+---
+
+### C.4 界面全英文，面向中国用户不可接受
+
+**问题**：整个 UI 界面、工具执行结果、Agent 提示信息全部是英文，而目标用户是中国开发者。
+
+**修复**（全面中文化）：
+- 应用名：`Android Dev Agent` → `安卓开发助手`
+- 底部导航：Chat/Files/History/Settings → 对话/文件/历史/设置
+- 设置页面：API Key/Base URL/Model Name → API 密钥/接口地址/模型名称
+- 安全策略：Auto Confirm/Dangerous Confirm → 自动确认/危险操作确认
+- 工具名称映射：read_file → 读取文件、write_file → 写入文件 等 16 个工具
+- AgentEngine 提示：LLM call failed → LLM 调用失败、Build has failed → 构建已连续失败
+- ToolExecutor 所有输出：File not found → 文件不存在、Written successfully → 写入成功 等
+- SecurityPolicy 风险描述：This will permanently delete → 此操作将永久删除
+- 日期格式：`MMM dd, HH:mm` → `MM月dd日 HH:mm`（Locale.CHINESE）
+
+**注意**：LLM 系统提示词（System Prompt）和工具定义（Tool Definitions）保持英文，因为 LLM 对英文指令理解更准确。
+
+**状态**：✅ 已修复
+
+---
+
+### C.5 数据不持久化导致功能断裂
+
+**问题**：
+- AgentChatViewModel 不从 SharedPreferences 加载 projectPath，每次打开首页都显示"未选择项目"
+- AgentChatViewModel.setProjectPath() 不持久化到 SharedPreferences，切换页面后丢失
+- ProjectFilesViewModel.selectProject() 是空 TODO，点击"打开"按钮无反应
+
+**修复**：
+- AgentChatViewModel 添加 `loadInitialState()` 从 SharedPreferences 读取 projectPath
+- `setProjectPath()` 同时写入 SharedPreferences
+- ProjectFilesViewModel 添加 `shouldOpenFolderPicker` 状态驱动 UI 层的 SAF 文件选择器
+- ProjectFilesScreen 添加 `rememberLauncherForActivityResult(OpenDocumentTree)` 实际选择文件夹
+- 选择后通过 `setProjectPath()` 持久化并刷新文件列表
+
+**状态**：✅ 已修复
+
+---
+
 ## 二、P0 — 没有这些就不能用（核心体验）
 
 ### 2.1 多模态输入（图片/文件上传）
