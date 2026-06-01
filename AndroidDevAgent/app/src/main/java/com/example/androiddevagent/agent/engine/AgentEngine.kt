@@ -3,32 +3,60 @@ package com.example.androiddevagent.agent.engine
 import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.events.EventStream
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
-import com.example.androiddevagent.agent.llm.ChatCompletionResponse
 import com.example.androiddevagent.agent.llm.LlmConstants
 import com.example.androiddevagent.agent.llm.LlmProvider
+import com.example.androiddevagent.agent.memory.AndroidSkills
+import com.example.androiddevagent.agent.memory.ContextCondenser
+import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
+import com.example.androiddevagent.agent.security.SecurityPolicy
 import com.example.androiddevagent.agent.tools.ToolDefinitions
 import com.example.androiddevagent.agent.tools.ToolExecutor
+import com.example.androiddevagent.agent.vcs.GitIntegration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AgentEngine @Inject constructor(
     private val llmProvider: LlmProvider,
     private val toolExecutor: ToolExecutor,
     private val eventStream: EventStream,
-    private val stuckDetector: StuckDetector
+    private val stuckDetector: StuckDetector,
+    private val condenser: ContextCondenser,
+    private val projectSummaryGenerator: ProjectSummaryGenerator,
+    private val androidSkills: AndroidSkills,
+    private val securityPolicy: SecurityPolicy,
+    private val gitIntegration: GitIntegration
 ) {
 
     private val maxIterations = 20
     private val maxAutoFixAttempts = 3
+    private var projectSummary = ""
+
+    fun setProjectPath(path: String) {
+        toolExecutor.setProjectPath(path)
+        gitIntegration.setProjectPath(path)
+        projectSummary = try {
+            val summary = projectSummaryGenerator.generate(path)
+            buildSummaryString(summary)
+        } catch (e: Exception) {
+            ""
+        }
+    }
 
     fun run(task: String): Flow<AgentEvent> = flow {
         eventStream.clear()
-        val messages = mutableListOf<ChatCompletionRequest.Message>()
 
+        val skillContext = androidSkills.getRelevantSkills(task)
+        val systemPrompt = LlmConstants.buildSystemPrompt() +
+                (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
+                (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "")
+
+        val messages = mutableListOf<ChatCompletionRequest.Message>()
         messages.add(ChatCompletionRequest.Message(
             role = "system",
-            content = LlmConstants.buildSystemPrompt()
+            content = systemPrompt
         ))
 
         messages.add(ChatCompletionRequest.Message(
@@ -43,8 +71,14 @@ class AgentEngine @Inject constructor(
         var consecutiveBuildFailures = 0
 
         while (iterations++ < maxIterations) {
+            val condensed = condenser.condense(
+                events = eventStream.history,
+                systemPrompt = systemPrompt,
+                projectSummary = projectSummary
+            )
+
             val response = try {
-                llmProvider.chatWithTools(messages, ToolDefinitions.allTools())
+                llmProvider.chatWithTools(condensed.messages, ToolDefinitions.allTools())
             } catch (e: Exception) {
                 eventStream.emit(AgentEvent.ErrorEvent("LLM call failed: ${e.message}"))
                 break
@@ -69,6 +103,14 @@ class AgentEngine @Inject constructor(
                     val toolName = toolCall.function.name
                     val toolArgs = parseToolArgs(toolCall.function.arguments)
 
+                    if (securityPolicy.needsConfirmation(toolCall)) {
+                        eventStream.emit(AgentEvent.AwaitingConfirmationEvent(
+                            callId = callId,
+                            name = toolName,
+                            args = toolArgs
+                        ))
+                    }
+
                     eventStream.emit(AgentEvent.ToolCallEvent(callId, toolName, toolArgs))
 
                     val result = toolExecutor.execute(toolCall)
@@ -90,6 +132,7 @@ class AgentEngine @Inject constructor(
 
                         if (buildSuccess) {
                             consecutiveBuildFailures = 0
+                            gitIntegration.autoCommit("build: assembleDebug succeeded")
                         } else {
                             consecutiveBuildFailures++
                             if (consecutiveBuildFailures >= maxAutoFixAttempts) {
@@ -107,6 +150,11 @@ class AgentEngine @Inject constructor(
                         }
                     }
 
+                    if (result.success && toolName in listOf("write_file", "edit_file") &&
+                        toolName != "gradle_build") {
+                        gitIntegration.autoCommit("$toolName: ${toolArgs["path"]}")
+                    }
+
                     messages.add(ChatCompletionRequest.Message(
                         role = "tool",
                         content = result.output,
@@ -115,6 +163,9 @@ class AgentEngine @Inject constructor(
                 }
             } else {
                 val finalContent = response.getTextContent()
+                if (filesChanged.isNotEmpty()) {
+                    gitIntegration.autoCommit("task complete: ${task.take(50)}")
+                }
                 eventStream.emit(AgentEvent.TaskCompleteEvent(
                     summary = finalContent,
                     filesChanged = filesChanged
@@ -149,6 +200,24 @@ class AgentEngine @Inject constructor(
         if (iterations >= maxIterations) {
             eventStream.emit(AgentEvent.StuckDetectedEvent("Reached maximum iterations ($maxIterations)"))
         }
+    }
+
+    private fun buildSummaryString(summary: com.example.androiddevagent.agent.memory.ProjectSummary): String {
+        val sb = StringBuilder()
+        sb.append("Project Structure:\n${summary.structure}\n")
+        if (summary.keyFiles.isNotEmpty()) {
+            sb.append("Key Files:\n")
+            summary.keyFiles.take(15).forEach { f ->
+                sb.append("- ${f.path}: ${f.summary} (${f.lineCount} lines)\n")
+            }
+        }
+        if (summary.gradleDependencies.isNotEmpty()) {
+            sb.append("Dependencies:\n${summary.gradleDependencies}\n")
+        }
+        if (summary.manifestInfo.isNotEmpty()) {
+            sb.append("Manifest:\n${summary.manifestInfo}\n")
+        }
+        return sb.toString()
     }
 
     private fun parseToolArgs(json: String): Map<String, String> {

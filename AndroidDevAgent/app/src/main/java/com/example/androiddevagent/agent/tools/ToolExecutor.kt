@@ -1,23 +1,29 @@
 package com.example.androiddevagent.agent.tools
 
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
+import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Singleton
 
 data class ToolResult(
     val output: String,
     val success: Boolean
 )
 
-class ToolExecutor @Inject constructor() {
+@Singleton
+class ToolExecutor @Inject constructor(
+    private val gitIntegration: GitIntegration
+) {
 
     private var projectPath: String = ""
     private val gson = Gson()
 
     fun setProjectPath(path: String) {
         projectPath = path
+        gitIntegration.setProjectPath(path)
     }
 
     fun getProjectPath(): String = projectPath
@@ -34,6 +40,9 @@ class ToolExecutor @Inject constructor() {
             "run_tests" -> runTests(args)
             "read_logcat" -> readLogcat(args)
             "lint_check" -> lintCheck(args)
+            "git_commit" -> gitCommit(args)
+            "git_diff" -> gitDiff(args)
+            "git_revert" -> gitRevert()
             else -> ToolResult("Unknown tool: ${call.function.name}", false)
         }
     }
@@ -312,6 +321,35 @@ class ToolExecutor @Inject constructor() {
             output.lines().takeLast(15).joinToString("\n")
         } else {
             summaryLines.joinToString("\n")
+        }
+    }
+
+    private fun gitCommit(args: Map<String, String>): ToolResult {
+        val message = args["message"] ?: return ToolResult("Missing 'message' parameter", false)
+        val result = gitIntegration.autoCommit(message)
+        return if (result.success) {
+            ToolResult("Committed: ${result.output.take(200)}", true)
+        } else {
+            ToolResult("Git commit failed: ${result.output}", false)
+        }
+    }
+
+    private fun gitDiff(args: Map<String, String>): ToolResult {
+        val stat = args["stat"]?.toBoolean() ?: true
+        val result = if (stat) gitIntegration.getDiffStat() else gitIntegration.getDiff()
+        return if (result.success) {
+            ToolResult("Git diff:\n${result.output.take(1000)}", true)
+        } else {
+            ToolResult("Git diff failed: ${result.output}", false)
+        }
+    }
+
+    private fun gitRevert(): ToolResult {
+        val result = gitIntegration.revertLastCommit()
+        return if (result.success) {
+            ToolResult("Reverted last commit: ${result.output.take(200)}", true)
+        } else {
+            ToolResult("Git revert failed: ${result.output}", false)
         }
     }
 

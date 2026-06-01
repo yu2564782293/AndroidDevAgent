@@ -14,6 +14,9 @@ object ToolDefinitions {
         runTestsTool(),
         readLogcatTool(),
         lintCheckTool(),
+        gitCommitTool(),
+        gitDiffTool(),
+        gitRevertTool(),
         askUserTool()
     )
 
@@ -185,6 +188,49 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("path")
+            )
+        )
+    )
+
+    private fun gitCommitTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_commit",
+            description = "Commit all current changes to Git. Returns the commit hash. Changes are automatically staged before committing.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "message" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Commit message describing the changes"
+                    )
+                ),
+                required = listOf("message")
+            )
+        )
+    )
+
+    private fun gitDiffTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_diff",
+            description = "Show uncommitted changes in the project. Returns a summary of modified, added, and deleted files.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "stat" to ChatCompletionRequest.PropertyDef(
+                        type = "boolean",
+                        description = "If true, show only stat summary instead of full diff (optional, default: true)"
+                    )
+                ),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun gitRevertTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_revert",
+            description = "Undo the last Git commit. Changes are preserved in the working directory. Use this to rollback a bad change.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(),
+                required = listOf()
             )
         )
     )

@@ -67,7 +67,7 @@ class AgentChatViewModel @Inject constructor(
     }
 
     fun setProjectPath(path: String) {
-        toolExecutor.setProjectPath(path)
+        agentEngine.setProjectPath(path)
         _uiState.value = _uiState.value.copy(projectPath = path)
     }
 }
