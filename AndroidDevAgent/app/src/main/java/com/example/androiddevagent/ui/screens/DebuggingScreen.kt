@@ -5,18 +5,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.AndroidDevAgent
 import com.example.androiddevagent.agent.AgentResponse
-import com.example.androiddevagent.models.CodeGenerationRequest
-import com.example.androiddevagent.models.CodeGenerationResult
-import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,14 +21,12 @@ import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CodeGenerationScreen(
-    viewModel: CodeGenerationViewModel = hiltViewModel()
+fun DebuggingScreen(
+    viewModel: DebuggingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var userInput by remember { mutableStateOf("") }
-    var selectedLanguage by remember { mutableStateOf(ProgrammingLanguage.KOTLIN) }
-
-    val languages = ProgrammingLanguage.entries
+    var errorDescription by remember { mutableStateOf("") }
+    var codeSnippet by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -41,39 +34,30 @@ fun CodeGenerationScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "智能代码生成",
+            text = "调试助手",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        Text(
-            text = "选择编程语言:",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(bottom = 8.dp)
+        OutlinedTextField(
+            value = errorDescription,
+            onValueChange = { errorDescription = it },
+            label = { Text("描述你遇到的错误...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp),
+            maxLines = 5
         )
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            languages.forEach { language ->
-                FilterChip(
-                    selected = language == selectedLanguage,
-                    onClick = { selectedLanguage = language },
-                    label = { Text(language.displayName) }
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
-            value = userInput,
-            onValueChange = { userInput = it },
-            label = { Text("描述你想要的代码功能...") },
+            value = codeSnippet,
+            onValueChange = { codeSnippet = it },
+            label = { Text("相关代码片段（可选）") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(150.dp),
+                .height(100.dp),
             maxLines = 5
         )
 
@@ -81,12 +65,12 @@ fun CodeGenerationScreen(
 
         Button(
             onClick = {
-                if (userInput.isNotBlank()) {
-                    viewModel.generateCode(userInput, selectedLanguage)
+                if (errorDescription.isNotBlank()) {
+                    viewModel.debugError(errorDescription, codeSnippet.ifBlank { null })
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = userInput.isNotBlank() && !uiState.isLoading
+            enabled = errorDescription.isNotBlank() && !uiState.isLoading
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
@@ -94,9 +78,9 @@ fun CodeGenerationScreen(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("生成中...")
+                Text("分析中...")
             } else {
-                Text("生成代码")
+                Text("开始调试")
             }
         }
 
@@ -111,9 +95,9 @@ fun CodeGenerationScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (uiState.generatedCode.isNotBlank()) {
+        if (uiState.suggestedSolution.isNotBlank()) {
             Text(
-                text = "生成的代码:",
+                text = "解决方案:",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -132,66 +116,65 @@ fun CodeGenerationScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = uiState.generatedCode,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace
+                        text = uiState.suggestedSolution,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.copyToClipboard() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("复制代码")
+            if (uiState.alternativeSolutions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "备选方案:",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                uiState.alternativeSolutions.forEach { solution ->
+                    Text(
+                        text = "• $solution",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
                 }
+            }
 
-                OutlinedButton(
-                    onClick = {
-                        userInput = ""
-                        viewModel.clearResult()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("清空")
-                }
+            if (uiState.confidence > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { uiState.confidence.toFloat() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = "置信度: ${(uiState.confidence * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
 }
 
 @HiltViewModel
-class CodeGenerationViewModel @Inject constructor(
+class DebuggingViewModel @Inject constructor(
     private val agent: AndroidDevAgent
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CodeGenerationUiState())
-    val uiState: StateFlow<CodeGenerationUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(DebuggingUiState())
+    val uiState: StateFlow<DebuggingUiState> = _uiState.asStateFlow()
 
-    fun generateCode(description: String, language: ProgrammingLanguage) {
+    fun debugError(errorDescription: String, codeSnippet: String?) {
         viewModelScope.launch {
-            val request = CodeGenerationRequest(
-                description = description,
-                language = language
-            )
-            agent.generateCode(request).collect { response ->
+            agent.debugError(errorDescription, codeSnippet).collect { response ->
                 when (response) {
                     is AgentResponse.Loading -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = true,
-                            error = null
-                        )
+                        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                     }
                     is AgentResponse.Success -> {
-                        val result = response.data as? CodeGenerationResult
+                        val result = response.data as? com.example.androiddevagent.models.DebugResult
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            generatedCode = result?.code ?: response.data.toString(),
+                            suggestedSolution = result?.suggestedSolution ?: response.data.toString(),
+                            confidence = result?.confidence ?: 0.0,
+                            alternativeSolutions = result?.alternativeSolutions ?: emptyList(),
                             error = null
                         )
                     }
@@ -205,16 +188,12 @@ class CodeGenerationViewModel @Inject constructor(
             }
         }
     }
-
-    fun copyToClipboard() {}
-
-    fun clearResult() {
-        _uiState.value = CodeGenerationUiState()
-    }
 }
 
-data class CodeGenerationUiState(
-    val generatedCode: String = "",
+data class DebuggingUiState(
+    val suggestedSolution: String = "",
+    val confidence: Double = 0.0,
+    val alternativeSolutions: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )

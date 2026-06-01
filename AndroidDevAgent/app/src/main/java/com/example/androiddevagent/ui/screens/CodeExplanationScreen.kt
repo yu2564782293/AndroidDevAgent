@@ -5,7 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -14,8 +13,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.AndroidDevAgent
 import com.example.androiddevagent.agent.AgentResponse
-import com.example.androiddevagent.models.CodeGenerationRequest
-import com.example.androiddevagent.models.CodeGenerationResult
 import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,14 +23,12 @@ import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CodeGenerationScreen(
-    viewModel: CodeGenerationViewModel = hiltViewModel()
+fun CodeExplanationScreen(
+    viewModel: CodeExplanationViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var userInput by remember { mutableStateOf("") }
+    var codeInput by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf(ProgrammingLanguage.KOTLIN) }
-
-    val languages = ProgrammingLanguage.entries
 
     Column(
         modifier = Modifier
@@ -41,7 +36,7 @@ fun CodeGenerationScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "智能代码生成",
+            text = "代码解释",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -58,7 +53,7 @@ fun CodeGenerationScreen(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
-            languages.forEach { language ->
+            ProgrammingLanguage.entries.forEach { language ->
                 FilterChip(
                     selected = language == selectedLanguage,
                     onClick = { selectedLanguage = language },
@@ -68,25 +63,25 @@ fun CodeGenerationScreen(
         }
 
         OutlinedTextField(
-            value = userInput,
-            onValueChange = { userInput = it },
-            label = { Text("描述你想要的代码功能...") },
+            value = codeInput,
+            onValueChange = { codeInput = it },
+            label = { Text("粘贴需要解释的代码...") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp),
-            maxLines = 5
+            maxLines = 8
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {
-                if (userInput.isNotBlank()) {
-                    viewModel.generateCode(userInput, selectedLanguage)
+                if (codeInput.isNotBlank()) {
+                    viewModel.explainCode(codeInput, selectedLanguage)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = userInput.isNotBlank() && !uiState.isLoading
+            enabled = codeInput.isNotBlank() && !uiState.isLoading
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
@@ -94,9 +89,9 @@ fun CodeGenerationScreen(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("生成中...")
+                Text("分析中...")
             } else {
-                Text("生成代码")
+                Text("解释代码")
             }
         }
 
@@ -111,9 +106,9 @@ fun CodeGenerationScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (uiState.generatedCode.isNotBlank()) {
+        if (uiState.explanation.isNotBlank()) {
             Text(
-                text = "生成的代码:",
+                text = "解释结果:",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -132,33 +127,25 @@ fun CodeGenerationScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = uiState.generatedCode,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace
+                        text = uiState.explanation,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.copyToClipboard() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("复制代码")
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        userInput = ""
-                        viewModel.clearResult()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("清空")
+            if (uiState.suggestions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "优化建议:",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                uiState.suggestions.forEach { suggestion ->
+                    Text(
+                        text = "• $suggestion",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
                 }
             }
         }
@@ -166,32 +153,26 @@ fun CodeGenerationScreen(
 }
 
 @HiltViewModel
-class CodeGenerationViewModel @Inject constructor(
+class CodeExplanationViewModel @Inject constructor(
     private val agent: AndroidDevAgent
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CodeGenerationUiState())
-    val uiState: StateFlow<CodeGenerationUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(CodeExplanationUiState())
+    val uiState: StateFlow<CodeExplanationUiState> = _uiState.asStateFlow()
 
-    fun generateCode(description: String, language: ProgrammingLanguage) {
+    fun explainCode(code: String, language: ProgrammingLanguage) {
         viewModelScope.launch {
-            val request = CodeGenerationRequest(
-                description = description,
-                language = language
-            )
-            agent.generateCode(request).collect { response ->
+            agent.explainCode(code, language).collect { response ->
                 when (response) {
                     is AgentResponse.Loading -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = true,
-                            error = null
-                        )
+                        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                     }
                     is AgentResponse.Success -> {
-                        val result = response.data as? CodeGenerationResult
+                        val result = response.data as? com.example.androiddevagent.models.CodeExplanationResult
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            generatedCode = result?.code ?: response.data.toString(),
+                            explanation = result?.explanation ?: response.data.toString(),
+                            suggestions = result?.suggestions ?: emptyList(),
                             error = null
                         )
                     }
@@ -205,16 +186,11 @@ class CodeGenerationViewModel @Inject constructor(
             }
         }
     }
-
-    fun copyToClipboard() {}
-
-    fun clearResult() {
-        _uiState.value = CodeGenerationUiState()
-    }
 }
 
-data class CodeGenerationUiState(
-    val generatedCode: String = "",
+data class CodeExplanationUiState(
+    val explanation: String = "",
+    val suggestions: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )

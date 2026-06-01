@@ -339,14 +339,7 @@ class AndroidDevAgent @Inject constructor(
 
 // 响应包装类
 sealed class AgentResponse {
-    object Loading : AgentResponse() {
-        var message: String = ""
-        operator fun invoke(message: String): Loading {
-            this.message = message
-            return this
-        }
-    }
-    
+    data class Loading(val message: String) : AgentResponse()
     data class Success(val data: Any) : AgentResponse()
     data class Error(val message: String) : AgentResponse()
 }
