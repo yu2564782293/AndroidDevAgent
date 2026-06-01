@@ -91,7 +91,7 @@ fun SettingsScreen(
                 singleLine = true
             )
 
-            HorizontalDivider()
+            Divider()
 
             Text("项目", style = MaterialTheme.typography.titleMedium)
 
@@ -110,7 +110,7 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            HorizontalDivider()
+            Divider()
 
             Text("安全策略", style = MaterialTheme.typography.titleMedium)
 
