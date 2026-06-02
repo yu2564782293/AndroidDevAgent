@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -165,10 +164,8 @@ fun AgentChatScreen(
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(DerekGradientStart, DerekGradientEnd),
-                                        start = Offset.Zero,
-                                        end = Offset(32f, 32f)
+                                    Brush.horizontalGradient(
+                                        colors = listOf(DerekGradientStart, DerekGradientEnd)
                                     )
                                 ),
                             contentAlignment = Alignment.Center
@@ -794,10 +791,8 @@ private fun EmptyChatContent(
                 .size(80.dp)
                 .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(
-                        colors = listOf(DerekGradientStart, DerekGradientEnd),
-                        start = Offset.Zero,
-                        end = Offset(80f, 80f)
+                    Brush.horizontalGradient(
+                        colors = listOf(DerekGradientStart, DerekGradientEnd)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -952,6 +947,7 @@ private fun EmptyChatContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickActionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -1031,10 +1027,8 @@ private fun MessageBubble(content: String, isUser: Boolean) {
                     .size(28.dp)
                     .clip(CircleShape)
                     .background(
-                        Brush.linearGradient(
-                            colors = listOf(DerekGradientStart, DerekGradientEnd),
-                            start = Offset.Zero,
-                            end = Offset(28f, 28f)
+                        Brush.horizontalGradient(
+                            colors = listOf(DerekGradientStart, DerekGradientEnd)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -1367,10 +1361,8 @@ private fun ThinkingIndicator() {
                 .size(28.dp)
                 .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(
-                        colors = listOf(DerekGradientStart, DerekGradientEnd),
-                        start = Offset.Zero,
-                        end = Offset(28f, 28f)
+                    Brush.horizontalGradient(
+                        colors = listOf(DerekGradientStart, DerekGradientEnd)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -1562,7 +1554,6 @@ private fun AutoFixBubble(attempt: Int, maxAttempts: Int, errorSummary: String) 
             }
             Spacer(modifier = Modifier.height(4.dp))
             LinearProgressIndicator(
-                progress = { attempt.toFloat() / maxAttempts.toFloat() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
