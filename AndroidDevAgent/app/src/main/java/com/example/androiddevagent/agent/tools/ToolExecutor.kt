@@ -19,7 +19,8 @@ data class ToolResult(
 class ToolExecutor @Inject constructor(
     private val gitIntegration: GitIntegration,
     private val projectSummaryGenerator: ProjectSummaryGenerator,
-    private val termuxIntegration: TermuxIntegration
+    private val termuxIntegration: TermuxIntegration,
+    private val githubApiService: com.example.androiddevagent.agent.vcs.GitHubApiService
 ) {
 
     private var projectPath: String = ""
@@ -61,6 +62,15 @@ class ToolExecutor @Inject constructor(
             "glob" -> globFiles(args)
             "grep" -> grepContent(args)
             "todo_write" -> todoWrite(args)
+            "github_read_file" -> githubReadFile(args)
+            "github_write_file" -> githubWriteFile(args)
+            "github_list_dir" -> githubListDir(args)
+            "github_delete_file" -> githubDeleteFile(args)
+            "github_branch" -> githubBranch(args)
+            "github_repo_info" -> githubRepoInfo()
+            "github_commits" -> githubCommits(args)
+            "github_create_pr" -> githubCreatePR(args)
+            "github_search_code" -> githubSearchCode(args)
             else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
@@ -823,5 +833,218 @@ class ToolExecutor @Inject constructor(
             .replace("(__ANYDIR__/)?", "(?:.*/)?")
             .replace("__ANY__", ".*")
         return Regex("^$regex$")
+    }
+
+    private fun githubReadFile(args: Map<String, String>): ToolResult {
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
+        val branch = args["branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库，请先在首页连接仓库并确保已配置 GitHub Token", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                githubApiService.readFile(path, branch)
+            }
+            result.fold(
+                onSuccess = { file ->
+                    val lineCount = file.content.lines().size
+                    val content = file.content.lines().mapIndexed { idx, line ->
+                        "${idx + 1}→$line"
+                    }.joinToString("\n")
+                    ToolResult("GitHub 文件: $path ($lineCount 行, SHA: ${file.sha.take(7)})\n$content", true)
+                },
+                onFailure = { ToolResult("读取 GitHub 文件失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubWriteFile(args: Map<String, String>): ToolResult {
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
+        val content = args["content"] ?: return ToolResult("缺少 'content' 参数", false)
+        val message = args["message"] ?: return ToolResult("缺少 'message' 参数", false)
+        val branch = args["branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库，请先在首页连接仓库并确保已配置 GitHub Token", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                githubApiService.writeFile(path, content, message, branch)
+            }
+            result.fold(
+                onSuccess = { commit ->
+                    val lineCount = content.lines().size
+                    ToolResult("已写入 GitHub 文件: $path ($lineCount 行)\n提交: ${commit.sha.take(7)}\n查看: ${commit.htmlUrl}", true)
+                },
+                onFailure = { ToolResult("写入 GitHub 文件失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubListDir(args: Map<String, String>): ToolResult {
+        val path = args["path"] ?: ""
+        val branch = args["branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                githubApiService.listDirectory(path, branch)
+            }
+            result.fold(
+                onSuccess = { entries ->
+                    val listing = entries.map { entry ->
+                        val icon = if (entry.type == "dir") "📁" else "📄"
+                        val sizeStr = if (entry.type == "file") " (${entry.size}B)" else ""
+                        "$icon ${entry.name}$sizeStr"
+                    }.joinToString("\n")
+                    val dirLabel = if (path.isEmpty()) "/" else path
+                    ToolResult("GitHub 目录: $dirLabel (${entries.size} 项)\n$listing", true)
+                },
+                onFailure = { ToolResult("列出 GitHub 目录失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubDeleteFile(args: Map<String, String>): ToolResult {
+        val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
+        val message = args["message"] ?: return ToolResult("缺少 'message' 参数", false)
+        val branch = args["branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                githubApiService.deleteFile(path, message, branch)
+            }
+            result.fold(
+                onSuccess = { ToolResult("已从 GitHub 删除文件: $path\n提交: ${it.sha.take(7)}", true) },
+                onFailure = { ToolResult("删除 GitHub 文件失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubBranch(args: Map<String, String>): ToolResult {
+        val action = args["action"] ?: return ToolResult("缺少 'action' 参数", false)
+        val name = args["name"] ?: ""
+        val fromBranch = args["from_branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            when (action) {
+                "list" -> {
+                    val result = kotlinx.coroutines.runBlocking { githubApiService.listBranches() }
+                    result.fold(
+                        onSuccess = { branches ->
+                            val branchList = branches.map { b ->
+                                val marker = if (b.isDefault) " (当前)" else ""
+                                "  ${b.name}$marker"
+                            }.joinToString("\n")
+                            ToolResult("GitHub 分支列表:\n$branchList", true)
+                        },
+                        onFailure = { ToolResult("获取分支列表失败: ${it.message}", false) }
+                    )
+                }
+                "create" -> {
+                    if (name.isEmpty()) return ToolResult("创建分支需要 'name' 参数", false)
+                    val result = kotlinx.coroutines.runBlocking { githubApiService.createBranch(name, fromBranch) }
+                    result.fold(
+                        onSuccess = { ToolResult(it, true) },
+                        onFailure = { ToolResult("创建分支失败: ${it.message}", false) }
+                    )
+                }
+                "switch" -> {
+                    if (name.isEmpty()) return ToolResult("切换分支需要 'name' 参数", false)
+                    val repo = githubApiService.getRepo()
+                    if (repo != null) {
+                        githubApiService.setRepo(repo.owner, repo.repo, name)
+                        ToolResult("已切换到分支: $name", true)
+                    } else {
+                        ToolResult("未连接仓库", false)
+                    }
+                }
+                else -> ToolResult("未知分支操作: $action (支持: list, create, switch)", false)
+            }
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubRepoInfo(): ToolResult {
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking { githubApiService.getRepoInfo() }
+            result.fold(
+                onSuccess = { ToolResult("GitHub 仓库信息:\n$it", true) },
+                onFailure = { ToolResult("获取仓库信息失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubCommits(args: Map<String, String>): ToolResult {
+        val count = args["count"]?.toIntOrNull() ?: 10
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking { githubApiService.getRecentCommits(count) }
+            result.fold(
+                onSuccess = { ToolResult("GitHub 最近提交:\n$it", true) },
+                onFailure = { ToolResult("获取提交记录失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubCreatePR(args: Map<String, String>): ToolResult {
+        val title = args["title"] ?: return ToolResult("缺少 'title' 参数", false)
+        val body = args["body"] ?: ""
+        val headBranch = args["head_branch"] ?: return ToolResult("缺少 'head_branch' 参数", false)
+        val baseBranch = args["base_branch"] ?: ""
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                githubApiService.createPullRequest(title, body, headBranch, baseBranch)
+            }
+            result.fold(
+                onSuccess = { pr ->
+                    ToolResult("PR #${pr.number} 已创建: ${pr.title}\n状态: ${pr.state}\n${pr.headBranch} → ${pr.baseBranch}\n查看: ${pr.htmlUrl}", true)
+                },
+                onFailure = { ToolResult("创建 PR 失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun githubSearchCode(args: Map<String, String>): ToolResult {
+        val query = args["query"] ?: return ToolResult("缺少 'query' 参数", false)
+        if (!githubApiService.isConfigured()) {
+            return ToolResult("未连接 GitHub 仓库", false)
+        }
+        return try {
+            val result = kotlinx.coroutines.runBlocking { githubApiService.searchCode(query) }
+            result.fold(
+                onSuccess = { ToolResult("GitHub 代码搜索 '$query':\n$it", true) },
+                onFailure = { ToolResult("搜索失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("GitHub API 错误: ${e.message}", false)
+        }
     }
 }

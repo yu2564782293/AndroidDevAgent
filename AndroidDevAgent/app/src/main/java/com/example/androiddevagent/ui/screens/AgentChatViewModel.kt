@@ -10,6 +10,7 @@ import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.agent.share.ShareManager
 import com.example.androiddevagent.agent.tools.ToolExecutor
 import com.example.androiddevagent.agent.vcs.GitIntegration
+import com.example.androiddevagent.agent.vcs.GitHubApiService
 import com.example.androiddevagent.data.ChatMessageDao
 import com.example.androiddevagent.data.ChatMessageEntity
 import com.example.androiddevagent.data.TaskRecordDao
@@ -29,7 +30,9 @@ data class AgentChatUiState(
     val projectPath: String = "",
     val awaitingConfirmation: AgentEvent.AwaitingConfirmationEvent? = null,
     val sessionId: String = "",
-    val gitStatus: String = ""
+    val gitStatus: String = "",
+    val githubRepo: String = "",
+    val githubConnected: Boolean = false
 )
 
 @HiltViewModel
@@ -42,7 +45,8 @@ class AgentChatViewModel @Inject constructor(
     private val taskRecordDao: TaskRecordDao,
     private val shareManager: ShareManager,
     private val chatMessageDao: ChatMessageDao,
-    private val gitIntegration: GitIntegration
+    private val gitIntegration: GitIntegration,
+    private val githubApiService: GitHubApiService
 ) : ViewModel() {
 
     private val prefs by lazy {
@@ -59,12 +63,21 @@ class AgentChatViewModel @Inject constructor(
     private fun loadInitialState(): AgentChatUiState {
         val projectPath = prefs.getString("project_path", "") ?: ""
         val savedSessionId = prefs.getString("session_id", "") ?: ""
+        val githubOwner = prefs.getString("github_owner", "") ?: ""
+        val githubRepo = prefs.getString("github_repo", "") ?: ""
+        val githubBranch = prefs.getString("github_branch", "main") ?: "main"
         if (projectPath.isNotEmpty()) {
             agentEngine.setProjectPath(projectPath)
         }
+        if (githubOwner.isNotEmpty() && githubRepo.isNotEmpty()) {
+            githubApiService.setRepo(githubOwner, githubRepo, githubBranch)
+        }
+        val repoName = if (githubOwner.isNotEmpty()) "$githubOwner/$githubRepo" else ""
         return AgentChatUiState(
             projectPath = projectPath,
-            sessionId = if (savedSessionId.isNotEmpty()) savedSessionId else UUID.randomUUID().toString()
+            sessionId = if (savedSessionId.isNotEmpty()) savedSessionId else UUID.randomUUID().toString(),
+            githubRepo = repoName,
+            githubConnected = githubApiService.isConfigured()
         )
     }
 
@@ -183,6 +196,35 @@ class AgentChatViewModel @Inject constructor(
 
     fun cloneRepo(url: String, directory: String) {
         sendTask("克隆仓库 $url 到 $directory")
+    }
+
+    fun connectGitHubRepo(owner: String, repo: String, branch: String = "main") {
+        githubApiService.setRepo(owner, repo, branch)
+        val repoName = "$owner/$repo"
+        prefs.edit()
+            .putString("github_owner", owner)
+            .putString("github_repo", repo)
+            .putString("github_branch", branch)
+            .apply()
+        _uiState.value = _uiState.value.copy(
+            githubRepo = repoName,
+            githubConnected = githubApiService.isConfigured()
+        )
+        if (githubApiService.isConfigured()) {
+            sendTask("已连接 GitHub 仓库 $repoName (分支: $branch)。请使用 github_list_dir 查看仓库结构，使用 github_read_file 读取文件，使用 github_write_file 修改文件。")
+        }
+    }
+
+    fun disconnectGitHubRepo() {
+        prefs.edit()
+            .remove("github_owner")
+            .remove("github_repo")
+            .remove("github_branch")
+            .apply()
+        _uiState.value = _uiState.value.copy(
+            githubRepo = "",
+            githubConnected = false
+        )
     }
 
     fun gitPush() {

@@ -30,7 +30,16 @@ object ToolDefinitions {
         gitPushTool(),
         gitPullTool(),
         gitBranchTool(),
-        todoWriteTool()
+        todoWriteTool(),
+        githubReadFileTool(),
+        githubWriteFileTool(),
+        githubListDirTool(),
+        githubDeleteFileTool(),
+        githubBranchTool(),
+        githubRepoInfoTool(),
+        githubCommitsTool(),
+        githubCreatePRTool(),
+        githubSearchCodeTool()
     )
 
     private fun readFileTool() = ChatCompletionRequest.ToolDefinition(
@@ -515,6 +524,193 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("todos")
+            )
+        )
+    )
+
+    private fun githubReadFileTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_read_file",
+            description = "Read a file directly from the connected GitHub repository. No local files needed - reads from the cloud. Use this to understand existing code before making changes.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Path to the file in the repository (e.g. 'app/src/main/java/com/example/MainActivity.kt')"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch to read from (optional, defaults to current branch)"
+                    )
+                ),
+                required = listOf("path")
+            )
+        )
+    )
+
+    private fun githubWriteFileTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_write_file",
+            description = "Create or update a file directly in the GitHub repository. The change is committed immediately to the cloud. Use this to write code to the remote repository. If the file exists, it will be updated; if not, it will be created.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Path to the file in the repository"
+                    ),
+                    "content" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The complete file content to write"
+                    ),
+                    "message" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Commit message describing the change"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch to write to (optional, defaults to current branch)"
+                    )
+                ),
+                required = listOf("path", "content", "message")
+            )
+        )
+    )
+
+    private fun githubListDirTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_list_dir",
+            description = "List files and directories in the connected GitHub repository. Returns directory contents with file types and sizes. Use this to explore the repository structure.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Directory path to list (empty string for root, e.g. 'app/src/main/java')"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch to list from (optional, defaults to current branch)"
+                    )
+                ),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun githubDeleteFileTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_delete_file",
+            description = "Delete a file from the GitHub repository. The deletion is committed immediately. Use with caution.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Path to the file to delete"
+                    ),
+                    "message" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Commit message for the deletion"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch to delete from (optional, defaults to current branch)"
+                    )
+                ),
+                required = listOf("path", "message")
+            )
+        )
+    )
+
+    private fun githubBranchTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_branch",
+            description = "Manage GitHub repository branches: list branches, create a new branch, or switch the current working branch. Creating a branch on GitHub allows you to work on changes in isolation.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "action" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Action: 'list' (list all branches), 'create' (create new branch), 'switch' (switch current working branch)"
+                    ),
+                    "name" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch name (required for create and switch)"
+                    ),
+                    "from_branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Source branch to create from (optional, defaults to current branch)"
+                    )
+                ),
+                required = listOf("action")
+            )
+        )
+    )
+
+    private fun githubRepoInfoTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_repo_info",
+            description = "Get information about the connected GitHub repository: name, description, default branch, language, visibility, etc.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun githubCommitsTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_commits",
+            description = "Get recent commits from the GitHub repository. Shows commit messages, authors, and dates.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "count" to ChatCompletionRequest.PropertyDef(
+                        type = "integer",
+                        description = "Number of recent commits to show (optional, default: 10)"
+                    )
+                ),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun githubCreatePRTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_create_pr",
+            description = "Create a Pull Request on GitHub. Use this after making changes on a feature branch to request merging into the main branch.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "title" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Title of the Pull Request"
+                    ),
+                    "body" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Description of the Pull Request (optional)"
+                    ),
+                    "head_branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The branch containing your changes"
+                    ),
+                    "base_branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The branch you want to merge into (optional, defaults to main)"
+                    )
+                ),
+                required = listOf("title", "head_branch")
+            )
+        )
+    )
+
+    private fun githubSearchCodeTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "github_search_code",
+            description = "Search for code in the GitHub repository. Returns matching file paths. Useful for finding where a class or function is defined.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "query" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Search query (e.g. 'class MainActivity', 'fun onCreate')"
+                    )
+                ),
+                required = listOf("query")
             )
         )
     )

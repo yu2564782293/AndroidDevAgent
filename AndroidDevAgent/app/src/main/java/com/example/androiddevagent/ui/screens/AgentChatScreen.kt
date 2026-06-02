@@ -37,6 +37,7 @@ fun AgentChatScreen(
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
     var showCloneDialog by remember { mutableStateOf(false) }
+    var showGitHubDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -117,6 +118,22 @@ fun AgentChatScreen(
         )
     }
 
+    if (showGitHubDialog) {
+        ConnectGitHubDialog(
+            onDismiss = { showGitHubDialog = false },
+            onConnect = { owner, repo, branch ->
+                viewModel.connectGitHubRepo(owner, repo, branch)
+                showGitHubDialog = false
+            },
+            onDisconnect = {
+                viewModel.disconnectGitHubRepo()
+                showGitHubDialog = false
+            },
+            currentRepo = uiState.githubRepo,
+            isConnected = uiState.githubConnected
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -172,6 +189,14 @@ fun AgentChatScreen(
                                     showMenu = false
                                 },
                                 leadingIcon = { Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (uiState.githubConnected) "GitHub: ${uiState.githubRepo}" else "连接 GitHub 仓库") },
+                                onClick = {
+                                    showGitHubDialog = true
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(18.dp)) }
                             )
                             if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
                                 DropdownMenuItem(
@@ -291,6 +316,9 @@ fun AgentChatScreen(
                         projectPath = uiState.projectPath,
                         onProjectClick = { folderPicker.launch(null) },
                         onCloneClick = { showCloneDialog = true },
+                        onGitHubClick = { showGitHubDialog = true },
+                        githubConnected = uiState.githubConnected,
+                        githubRepo = uiState.githubRepo,
                         onSuggestionClick = { suggestion ->
                             inputText = suggestion
                         },
@@ -437,6 +465,111 @@ private fun CloneRepoDialog(
     )
 }
 
+@Composable
+private fun ConnectGitHubDialog(
+    onDismiss: () -> Unit,
+    onConnect: (owner: String, repo: String, branch: String) -> Unit,
+    onDisconnect: () -> Unit,
+    currentRepo: String,
+    isConnected: Boolean
+) {
+    var owner by remember { mutableStateOf("") }
+    var repo by remember { mutableStateOf("") }
+    var branch by remember { mutableStateOf("main") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("连接 GitHub 仓库")
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    "连接后，Agent 可以直接在云端仓库中读取、修改、创建文件，并自动提交。就像 AI 编程助手一样操作你的 GitHub 项目。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (isConnected) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("已连接: $currentRepo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                OutlinedTextField(
+                    value = owner,
+                    onValueChange = { owner = it },
+                    label = { Text("仓库所有者 (用户名或组织)") },
+                    placeholder = { Text("yu2564782293") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = repo,
+                    onValueChange = { repo = it },
+                    label = { Text("仓库名称") },
+                    placeholder = { Text("AndroidDevAgent") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = branch,
+                    onValueChange = { branch = it },
+                    label = { Text("分支") },
+                    placeholder = { Text("main") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "前提: 需要在设置中配置 GitHub Token (需要 repo 权限)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                if (isConnected) {
+                    TextButton(onClick = onDisconnect) {
+                        Text("断开", color = MaterialTheme.colorScheme.error)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Button(
+                    onClick = { onConnect(owner, repo, branch) },
+                    enabled = owner.isNotBlank() && repo.isNotBlank()
+                ) {
+                    Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("连接")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
 private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
     return try {
         val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
@@ -480,6 +613,9 @@ private fun EmptyChatContent(
     projectPath: String,
     onProjectClick: () -> Unit,
     onCloneClick: () -> Unit,
+    onGitHubClick: () -> Unit,
+    githubConnected: Boolean,
+    githubRepo: String,
     onSuggestionClick: (String) -> Unit,
     onBuildClick: () -> Unit,
     onInstallApkClick: () -> Unit,
@@ -521,6 +657,12 @@ private fun EmptyChatContent(
                 Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("克隆云端仓库")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onGitHubClick) {
+                Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (githubConnected) "GitHub: $githubRepo" else "连接 GitHub 仓库")
             }
         } else {
             AssistChip(
@@ -695,6 +837,15 @@ private fun ToolCallBubble(name: String, args: Map<String, String>) {
         "launch_app" -> "启动应用"
         "ask_user" -> "询问用户"
         "todo_write" -> "任务清单"
+        "github_read_file" -> "GitHub 读取"
+        "github_write_file" -> "GitHub 写入"
+        "github_list_dir" -> "GitHub 目录"
+        "github_delete_file" -> "GitHub 删除"
+        "github_branch" -> "GitHub 分支"
+        "github_repo_info" -> "GitHub 仓库信息"
+        "github_commits" -> "GitHub 提交"
+        "github_create_pr" -> "GitHub PR"
+        "github_search_code" -> "GitHub 搜索"
         else -> name
     }
 
