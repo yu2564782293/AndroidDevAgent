@@ -131,6 +131,20 @@ class SkillRuntime(
     ): ToolResult {
         val timeout = security?.maxExecutionTimeMs ?: 30000
 
+        val constraints = SandboxConstraints(
+            networkAllowed = security?.networkAccess ?: false,
+            fileAccessMode = security?.fileAccess ?: "none",
+            fileAccessRoot = projectPath,
+            maxExecutionTimeMs = timeout
+        )
+        val safetyWarnings = SkillSandbox.validateScriptSafety(scriptContent, constraints)
+        if (safetyWarnings.isNotEmpty()) {
+            val hasCritical = safetyWarnings.any { it.contains("危险命令") }
+            if (hasCritical) {
+                return ToolResult("脚本安全检查未通过:\n${safetyWarnings.joinToString("\n")}", false)
+            }
+        }
+
         return try {
             val processBuilder = ProcessBuilder("sh", "-c", scriptContent)
             processBuilder.environment()["TOOL_NAME"] = toolName
@@ -148,9 +162,10 @@ class SkillRuntime(
             }
 
             val exitCode = process.exitValue()
+            val sanitizedOutput = SkillSandbox.sanitizeOutput(output, 5000)
             ToolResult(
-                if (exitCode == 0) output.take(3000)
-                else "脚本执行失败 (退出码: $exitCode)\n${output.take(1000)}",
+                if (exitCode == 0) sanitizedOutput
+                else "脚本执行失败 (退出码: $exitCode)\n${sanitizedOutput.take(1000)}",
                 exitCode == 0
             )
         } catch (e: Exception) {

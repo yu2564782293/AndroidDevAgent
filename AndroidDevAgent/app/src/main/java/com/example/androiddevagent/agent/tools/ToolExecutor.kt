@@ -5,6 +5,7 @@ import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
 import com.example.androiddevagent.agent.vcs.GitHubApiService
 import com.example.androiddevagent.agent.skills.SkillManager
+import com.example.androiddevagent.agent.skills.PublishResult
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -81,6 +82,9 @@ class ToolExecutor @Inject constructor(
             "skill_uninstall" -> skillUninstall(args)
             "skill_update" -> skillUpdate(args)
             "skill_config" -> skillConfig(args)
+            "skill_create" -> skillCreate(args)
+            "skill_rollback" -> skillRollback(args)
+            "skill_publish" -> skillPublish(args)
             else -> kotlinx.coroutines.runBlocking {
                 skillManager.executeSkillTool(call.function.name, parseArgs(call.function.arguments), projectPath)
             }
@@ -1161,6 +1165,66 @@ class ToolExecutor @Inject constructor(
             }
         } catch (e: Exception) {
             ToolResult("配置操作失败: ${e.message}", false)
+        }
+    }
+
+    private fun skillCreate(args: Map<String, String>): ToolResult {
+        val type = args["type"] ?: return ToolResult("缺少 'type' 参数 (script/prompt/hybrid)", false)
+        val id = args["id"] ?: return ToolResult("缺少 'id' 参数", false)
+        val name = args["name"] ?: return ToolResult("缺少 'name' 参数", false)
+        val description = args["description"] ?: return ToolResult("缺少 'description' 参数", false)
+        val toolName = args["toolName"] ?: args["tool_name"] ?: "${id.replace("-", "_")}_tool"
+        val toolDescription = args["tool_description"] ?: description
+        val knowledge = args["knowledge"] ?: ""
+        val author = args["author"] ?: "derek-user"
+
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                skillManager.createSkillFromTemplate(type, id, name, description, toolName, toolDescription, knowledge, author)
+            }
+            result.fold(
+                onSuccess = { skill ->
+                    val tools = skill.toolNames.joinToString(", ")
+                    ToolResult("技能创建成功: ${skill.icon} ${skill.name} v${skill.version}\n类型: ${skill.runtimeType}\n工具: $tools\n描述: ${skill.description}", true)
+                },
+                onFailure = { ToolResult("技能创建失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("技能创建错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillRollback(args: Map<String, String>): ToolResult {
+        val skillId = args["skill_id"] ?: return ToolResult("缺少 'skill_id' 参数", false)
+        return try {
+            val result = kotlinx.coroutines.runBlocking { skillManager.rollbackSkill(skillId) }
+            result.fold(
+                onSuccess = { skill -> ToolResult("技能已回滚: ${skill.name} v${skill.version}", true) },
+                onFailure = { ToolResult("回滚失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("回滚错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillPublish(args: Map<String, String>): ToolResult {
+        val skillId = args["skill_id"] ?: return ToolResult("缺少 'skill_id' 参数", false)
+        val action = args["action"] ?: "export"
+        return try {
+            val result = kotlinx.coroutines.runBlocking {
+                when (action) {
+                    "publish" -> skillManager.publishSkill(skillId)
+                    "export" -> skillManager.exportSkillPackage(skillId)
+                    else -> PublishResult(false, "未知操作: $action")
+                }
+            }
+            if (result.success) {
+                ToolResult("${result.message}${if (result.publishUrl.isNotEmpty()) "\n地址: ${result.publishUrl}" else ""}", true)
+            } else {
+                ToolResult(result.message, false)
+            }
+        } catch (e: Exception) {
+            ToolResult("发布操作错误: ${e.message}", false)
         }
     }
 }

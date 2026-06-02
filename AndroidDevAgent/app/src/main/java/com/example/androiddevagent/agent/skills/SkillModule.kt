@@ -36,12 +36,46 @@ object SkillModule {
 
     @Provides
     @Singleton
+    fun provideSkillDependencyResolver(skillDao: SkillDao): SkillDependencyResolver {
+        return SkillDependencyResolver(skillDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSkillVersionManager(skillDao: SkillDao): SkillVersionManager {
+        return SkillVersionManager(skillDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSkillUsageTracker(skillDao: SkillDao): SkillUsageTracker {
+        return SkillUsageTracker(skillDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSkillPublisher(
+        @ApplicationContext context: Context,
+        skillDao: SkillDao
+    ): SkillPublisher {
+        return SkillPublisher(context, skillDao)
+    }
+
+    @Provides
+    @Singleton
     fun provideSkillManager(
         skillDao: SkillDao,
         skillRuntime: SkillRuntime,
         skillInstaller: SkillInstaller,
-        skillRegistry: SkillRegistry
+        skillRegistry: SkillRegistry,
+        skillDependencyResolver: SkillDependencyResolver,
+        skillVersionManager: SkillVersionManager,
+        skillUsageTracker: SkillUsageTracker,
+        skillPublisher: SkillPublisher
     ): SkillManager {
-        return SkillManager(skillDao, skillRuntime, skillInstaller, skillRegistry)
+        return SkillManager(
+            skillDao, skillRuntime, skillInstaller, skillRegistry,
+            skillDependencyResolver, skillVersionManager, skillUsageTracker, skillPublisher
+        )
     }
 }

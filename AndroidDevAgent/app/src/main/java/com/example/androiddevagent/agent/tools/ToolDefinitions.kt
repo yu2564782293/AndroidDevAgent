@@ -721,7 +721,10 @@ object ToolDefinitions {
         skillListTool(),
         skillUninstallTool(),
         skillUpdateTool(),
-        skillConfigTool()
+        skillConfigTool(),
+        skillCreateTool(),
+        skillRollbackTool(),
+        skillPublishTool()
     )
 
     fun allTools(skillTools: List<ChatCompletionRequest.ToolDefinition> = emptyList()): List<ChatCompletionRequest.ToolDefinition> {
@@ -831,6 +834,82 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("skill_id")
+            )
+        )
+    )
+
+    private fun skillCreateTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_create",
+            description = "创建自定义技能扩展。可以创建脚本型、提示型或混合型技能，让 DEREK AI 获得新能力。创建后技能立即可用。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "type" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能类型: script(脚本), prompt(纯知识), hybrid(混合)"
+                    ),
+                    "id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能唯一ID，如 my-custom-tool"
+                    ),
+                    "name" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能显示名称"
+                    ),
+                    "description" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能描述"
+                    ),
+                    "tool_name" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "提供的工具名称 (script/hybrid 类型必填)"
+                    ),
+                    "tool_description" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "工具描述 (script/hybrid 类型必填)"
+                    ),
+                    "knowledge" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能知识文本，注入到 system prompt (prompt 类型必填)"
+                    )
+                ),
+                required = listOf("type", "id", "name", "description")
+            )
+        )
+    )
+
+    private fun skillRollbackTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_rollback",
+            description = "回滚技能到上一个版本。当技能更新后出现问题时可使用此工具恢复。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "skill_id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "要回滚的技能 ID"
+                    )
+                ),
+                required = listOf("skill_id")
+            )
+        )
+    )
+
+    private fun skillPublishTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_publish",
+            description = "将自定义技能发布到技能市场，供其他用户安装使用。也可导出为离线技能包。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "skill_id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "要发布的技能 ID"
+                    ),
+                    "action" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "操作: publish(发布到市场) 或 export(导出离线包)"
+                    )
+                ),
+                required = listOf("skill_id", "action")
             )
         )
     )

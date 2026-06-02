@@ -133,6 +133,68 @@ class SkillViewModel @Inject constructor(
         }
     }
 
+    fun rollbackSkill(skillId: String) {
+        viewModelScope.launch {
+            skillManager.rollbackSkill(skillId).fold(
+                onSuccess = { skill ->
+                    _uiState.value = _uiState.value.copy(success = "${skill.name} 已回滚到 v${skill.version}")
+                    loadSkills()
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(error = "回滚失败: ${it.message}")
+                }
+            )
+        }
+    }
+
+    fun createSkill(
+        type: String,
+        id: String,
+        name: String,
+        description: String,
+        toolName: String,
+        toolDescription: String,
+        knowledge: String
+    ) {
+        viewModelScope.launch {
+            skillManager.createSkillFromTemplate(type, id, name, description, toolName, toolDescription, knowledge, "derek-user").fold(
+                onSuccess = { skill ->
+                    _uiState.value = _uiState.value.copy(success = "${skill.name} 创建成功！")
+                    loadSkills()
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(error = "创建失败: ${it.message}")
+                }
+            )
+        }
+    }
+
+    fun publishSkill(skillId: String) {
+        viewModelScope.launch {
+            val result = skillManager.publishSkill(skillId)
+            if (result.success) {
+                _uiState.value = _uiState.value.copy(success = result.message)
+            } else {
+                _uiState.value = _uiState.value.copy(error = "发布失败: ${result.message}")
+            }
+        }
+    }
+
+    fun exportSkill(skillId: String) {
+        viewModelScope.launch {
+            val result = skillManager.exportSkillPackage(skillId)
+            if (result.success) {
+                _uiState.value = _uiState.value.copy(success = result.message)
+            } else {
+                _uiState.value = _uiState.value.copy(error = "导出失败: ${result.message}")
+            }
+        }
+    }
+
+    fun getUsageStats(skillId: String): com.example.androiddevagent.agent.skills.SkillUsageStats {
+        return skillManager.getUsageStats(skillId)
+    }
+
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(error = "", success = "")
     }

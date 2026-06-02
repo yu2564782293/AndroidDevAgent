@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Publish
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -177,7 +179,9 @@ fun SkillScreen(
                                 skill = skill,
                                 onToggle = { viewModel.toggleSkill(skill.id, it) },
                                 onUninstall = { viewModel.uninstallSkill(skill.id) },
-                                onUpdate = { viewModel.updateSkill(skill.id) }
+                                onUpdate = { viewModel.updateSkill(skill.id) },
+                                onRollback = { viewModel.rollbackSkill(skill.id) },
+                                onPublish = { viewModel.exportSkill(skill.id) }
                             )
                         }
                     } else {
@@ -326,7 +330,9 @@ private fun InstalledSkillCard(
     skill: SkillEntity,
     onToggle: (Boolean) -> Unit,
     onUninstall: () -> Unit,
-    onUpdate: () -> Unit
+    onUpdate: () -> Unit,
+    onRollback: () -> Unit = {},
+    onPublish: () -> Unit = {}
 ) {
     var showActions by remember { mutableStateOf(false) }
 
@@ -371,20 +377,30 @@ private fun InstalledSkillCard(
             AnimatedVisibility(visible = showActions) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    OutlinedButton(onClick = onUpdate, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
+                    OutlinedButton(onClick = onUpdate, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text("更新", style = MaterialTheme.typography.labelSmall)
+                    }
+                    OutlinedButton(onClick = onRollback, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                        Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("回滚", style = MaterialTheme.typography.labelSmall)
+                    }
+                    OutlinedButton(onClick = onPublish, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                        Icon(Icons.Filled.Publish, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("发布", style = MaterialTheme.typography.labelSmall)
                     }
                     OutlinedButton(
                         onClick = onUninstall,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text("卸载", style = MaterialTheme.typography.labelSmall)
                     }
                 }

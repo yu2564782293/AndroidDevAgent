@@ -9,7 +9,11 @@ class SkillManager(
     private val skillDao: SkillDao,
     private val skillRuntime: SkillRuntime,
     private val skillInstaller: SkillInstaller,
-    private val skillRegistry: SkillRegistry
+    private val skillRegistry: SkillRegistry,
+    private val dependencyResolver: SkillDependencyResolver,
+    private val versionManager: SkillVersionManager,
+    private val usageTracker: SkillUsageTracker,
+    private val skillPublisher: SkillPublisher
 ) {
 
     fun getAllSkillToolDefinitions(): List<ChatCompletionRequest.ToolDefinition> {
@@ -35,7 +39,18 @@ class SkillManager(
         val skill = skills.find { toolName in it.toolNames }
             ?: return ToolResult("未找到提供工具 '$toolName' 的技能", false)
 
-        return skillRuntime.executeTool(skill.id, toolName, args, projectPath)
+        val startTime = System.currentTimeMillis()
+        val result = skillRuntime.executeTool(skill.id, toolName, args, projectPath)
+        val executionTime = System.currentTimeMillis() - startTime
+
+        usageTracker.recordUsage(SkillUsageRecord(
+            skillId = skill.id,
+            toolName = toolName,
+            success = result.success,
+            executionTimeMs = executionTime
+        ))
+
+        return result
     }
 
     suspend fun autoInstallForTask(task: String): List<SkillEntity> {
@@ -88,11 +103,16 @@ class SkillManager(
     }
 
     suspend fun installSkill(source: String, repo: String, branch: String = "main"): Result<SkillEntity> {
-        return when (source) {
+        val result = when (source) {
             "github" -> skillInstaller.installFromGitHub(repo, branch)
             "url" -> skillInstaller.installFromUrl(repo)
             else -> Result.failure(Exception("不支持的来源: $source"))
         }
+        return result
+    }
+
+    suspend fun checkDependencies(manifest: SkillManifest): DependencyResolution {
+        return dependencyResolver.resolveDependencies(manifest)
     }
 
     suspend fun uninstallSkill(skillId: String): Result<Unit> {
@@ -100,7 +120,16 @@ class SkillManager(
     }
 
     suspend fun updateSkill(skillId: String): Result<SkillEntity> {
+        versionManager.createBackup(skillId)
         return skillInstaller.update(skillId)
+    }
+
+    suspend fun rollbackSkill(skillId: String): Result<SkillEntity> {
+        return versionManager.rollback(skillId)
+    }
+
+    fun getBackupVersions(skillId: String): List<SkillVersion> {
+        return versionManager.getBackupVersions(skillId)
     }
 
     suspend fun toggleSkill(skillId: String, enabled: Boolean) {
@@ -125,5 +154,59 @@ class SkillManager(
 
     fun findSkillByToolName(toolName: String): SkillEntity? {
         return getEnabledSkills().find { toolName in it.toolNames }
+    }
+
+    fun getUsageStats(skillId: String): SkillUsageStats {
+        return usageTracker.getStats(skillId)
+    }
+
+    fun getAllUsageStats(): Map<String, SkillUsageStats> {
+        return usageTracker.getAllStats()
+    }
+
+    suspend fun createSkillFromTemplate(
+        type: String,
+        id: String,
+        name: String,
+        description: String,
+        toolName: String,
+        toolDescription: String,
+        knowledge: String,
+        author: String
+    ): Result<SkillEntity> {
+        val manifestJson = when (type) {
+            "script" -> SkillTemplateGenerator.generateScriptSkill(id, name, description, toolName, toolDescription, author)
+            "prompt" -> SkillTemplateGenerator.generatePromptSkill(id, name, description, knowledge, author)
+            "hybrid" -> SkillTemplateGenerator.generateHybridSkill(id, name, description, toolName, toolDescription, knowledge, author)
+            else -> return Result.failure(Exception("不支持的技能类型: $type"))
+        }
+
+        val manifest = SkillManifestParser.parse(manifestJson)
+            .getOrElse { return Result.failure(it) }
+
+        val skillDir = java.io.File("/sdcard/DerekAI/skills", id.replace("/", "_"))
+        skillDir.mkdirs()
+        java.io.File(skillDir, "skill.json").writeText(manifestJson)
+
+        if (type == "script" || type == "hybrid") {
+            val scriptContent = SkillTemplateGenerator.generateScriptTemplate(toolName)
+            java.io.File(skillDir, "main.kts").writeText(scriptContent)
+        }
+
+        return skillInstaller.installFromLocal(skillDir.absolutePath)
+    }
+
+    suspend fun publishSkill(skillId: String): PublishResult {
+        return skillPublisher.publishToMarketplace(skillId)
+    }
+
+    suspend fun exportSkillPackage(skillId: String, outputDir: String = "/sdcard/DerekAI/exports"): PublishResult {
+        return skillPublisher.exportSkillPackage(skillId, outputDir)
+    }
+
+    fun validateScriptSafety(skillId: String, script: String): List<String> {
+        val skill = getEnabledSkills().find { it.id == skillId } ?: return listOf("技能未找到")
+        val constraints = SkillSandbox.buildConstraints(skill, "")
+        return SkillSandbox.validateScriptSafety(script, constraints)
     }
 }
