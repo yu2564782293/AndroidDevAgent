@@ -242,7 +242,7 @@ ${hiltActivityAnnotation}class MainActivity : ComponentActivity() {
 @Composable
 fun Greeting(name: String) {
     Text(
-        text = "你好, \$name!",
+        text = "你好, ${'$'}name!",
         modifier = Modifier.padding(16.dp)
     )
 }

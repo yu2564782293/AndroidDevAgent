@@ -229,6 +229,7 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LlmProviderSelector(
     providers: List<LlmProviderConfig>,
