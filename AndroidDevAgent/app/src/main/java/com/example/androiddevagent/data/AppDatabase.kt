@@ -13,8 +13,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Database(
-    entities = [TaskRecordEntity::class, ProjectEntity::class, TokenUsageEntity::class, ChatMessageEntity::class, MemoryEntity::class],
-    version = 5,
+    entities = [TaskRecordEntity::class, ProjectEntity::class, TokenUsageEntity::class, ChatMessageEntity::class, MemoryEntity::class, SkillEntity::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -24,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tokenUsageDao(): TokenUsageDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun memoryDao(): MemoryDao
+    abstract fun skillDao(): SkillDao
 }
 
 @Module
@@ -39,7 +40,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "derek_ai_db"
-        ).fallbackToDestructiveMigrationFrom(1, 2, 3, 4).build()
+        ).fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5).build()
     }
 
     @Provides
@@ -65,5 +66,10 @@ object DatabaseModule {
     @Provides
     fun provideMemoryDao(database: AppDatabase): MemoryDao {
         return database.memoryDao()
+    }
+
+    @Provides
+    fun provideSkillDao(database: AppDatabase): SkillDao {
+        return database.skillDao()
     }
 }

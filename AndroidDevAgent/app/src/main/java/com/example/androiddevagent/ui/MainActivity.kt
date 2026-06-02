@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
@@ -135,6 +137,7 @@ fun MainApp() {
     val bottomItems = listOf(
         BottomNavItem(Screen.AgentChat, "对话", Icons.Filled.Chat, Icons.Outlined.Chat),
         BottomNavItem(Screen.ProjectFiles, "文件", Icons.Filled.Folder, Icons.Outlined.Folder),
+        BottomNavItem(Screen.Skills, "技能", Icons.Filled.Extension, Icons.Outlined.Extension),
         BottomNavItem(Screen.TaskHistory, "历史", Icons.Filled.History, Icons.Outlined.History),
         BottomNavItem(Screen.Settings, "设置", Icons.Filled.Settings, Icons.Outlined.Settings)
     )

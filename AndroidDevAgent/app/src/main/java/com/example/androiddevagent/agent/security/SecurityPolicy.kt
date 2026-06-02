@@ -1,6 +1,7 @@
 package com.example.androiddevagent.agent.security
 
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
+import com.example.androiddevagent.agent.skills.SkillManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,7 +12,9 @@ enum class SecurityLevel {
 }
 
 @Singleton
-class SecurityPolicy @Inject constructor() {
+class SecurityPolicy @Inject constructor(
+    private val skillManager: SkillManager
+) {
 
     var level: SecurityLevel = SecurityLevel.AUTO_CONFIRM
 
@@ -36,6 +39,15 @@ class SecurityPolicy @Inject constructor() {
     )
 
     fun needsConfirmation(toolCall: ChatCompletionRequest.ToolCall): Boolean {
+        val skillTool = skillManager.findSkillByToolName(toolCall.function.name)
+        if (skillTool != null) {
+            return when (skillTool.riskLevel) {
+                "high" -> true
+                "medium" -> level != SecurityLevel.AUTO_CONFIRM
+                "low" -> level == SecurityLevel.ALL_CONFIRM
+                else -> true
+            }
+        }
         return when (level) {
             SecurityLevel.AUTO_CONFIRM -> false
             SecurityLevel.DANGEROUS_CONFIRM -> toolCall.function.name in dangerousTools
@@ -44,6 +56,15 @@ class SecurityPolicy @Inject constructor() {
     }
 
     fun needsConfirmation(toolName: String): Boolean {
+        val skillTool = skillManager.findSkillByToolName(toolName)
+        if (skillTool != null) {
+            return when (skillTool.riskLevel) {
+                "high" -> true
+                "medium" -> level != SecurityLevel.AUTO_CONFIRM
+                "low" -> level == SecurityLevel.ALL_CONFIRM
+                else -> true
+            }
+        }
         return when (level) {
             SecurityLevel.AUTO_CONFIRM -> false
             SecurityLevel.DANGEROUS_CONFIRM -> toolName in dangerousTools
@@ -52,6 +73,20 @@ class SecurityPolicy @Inject constructor() {
     }
 
     fun getRiskDescription(toolCall: ChatCompletionRequest.ToolCall): String {
+        val skillTool = skillManager.findSkillByToolName(toolCall.function.name)
+        if (skillTool != null) {
+            val riskDesc = when (skillTool.riskLevel) {
+                "high" -> "高风险技能操作"
+                "medium" -> "中等风险技能操作"
+                "low" -> "低风险技能操作"
+                else -> "未知风险技能操作"
+            }
+            val accessDesc = buildString {
+                if (skillTool.networkAccess) append("需要网络访问; ")
+                if (skillTool.fileAccess != "none") append("文件访问: ${skillTool.fileAccess}; ")
+            }
+            return "技能 ${skillTool.name}: $riskDesc。$accessDesc${skillTool.description}"
+        }
         return when (toolCall.function.name) {
             "delete_file" -> "此操作将永久删除文件，无法撤销。"
             "gradle_build" -> "此操作将执行 Gradle 构建，可能需要较长时间并修改构建输出。"

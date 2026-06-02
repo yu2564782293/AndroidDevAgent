@@ -11,8 +11,9 @@ import com.example.androiddevagent.ui.screens.CodeEditorScreen
 import com.example.androiddevagent.ui.screens.NewProjectScreen
 import com.example.androiddevagent.ui.screens.ProjectFilesScreen
 import com.example.androiddevagent.ui.screens.ProjectListScreen
-import com.example.androiddevagent.ui.screens.TaskHistoryScreen
 import com.example.androiddevagent.ui.screens.SettingsScreen
+import com.example.androiddevagent.ui.screens.SkillScreen
+import com.example.androiddevagent.ui.screens.TaskHistoryScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -30,6 +31,9 @@ fun AppNavHost(navController: NavHostController) {
                     navController.navigate("code_editor/$encoded")
                 }
             )
+        }
+        composable(Screen.Skills.route) {
+            SkillScreen()
         }
         composable(Screen.TaskHistory.route) {
             TaskHistoryScreen()

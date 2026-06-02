@@ -14,6 +14,7 @@ import com.example.androiddevagent.agent.tools.ToolDefinitions
 import com.example.androiddevagent.agent.tools.ToolExecutor
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.example.androiddevagent.data.SecureStorage
+import com.example.androiddevagent.agent.skills.SkillManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -31,7 +32,8 @@ class AgentEngine @Inject constructor(
     private val securityPolicy: SecurityPolicy,
     private val gitIntegration: GitIntegration,
     private val secureStorage: SecureStorage,
-    private val memoryManager: MemoryManager
+    private val memoryManager: MemoryManager,
+    private val skillManager: SkillManager
 ) {
 
     private val maxAutoFixAttempts = 3
@@ -60,10 +62,12 @@ class AgentEngine @Inject constructor(
 
         val skillContext = androidSkills.getRelevantSkills(task)
         val memoryContext = memoryManager.buildMemoryContext(projectPath)
+        val skillKnowledge = skillManager.getAllSkillKnowledge()
         val systemPrompt = LlmConstants.buildSystemPrompt() +
                 (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
                 (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "") +
-                (if (memoryContext.isNotEmpty()) "\n\n$memoryContext" else "")
+                (if (memoryContext.isNotEmpty()) "\n\n$memoryContext" else "") +
+                (if (skillKnowledge.isNotEmpty()) "\n\n$skillKnowledge" else "")
 
         val messages = mutableListOf<ChatCompletionRequest.Message>()
         messages.add(ChatCompletionRequest.Message(
@@ -101,7 +105,7 @@ class AgentEngine @Inject constructor(
             )
 
             val response = try {
-                llmProvider.chatWithTools(condensed, ToolDefinitions.allTools())
+                llmProvider.chatWithTools(condensed, ToolDefinitions.allTools(skillManager.getAllSkillToolDefinitions()))
             } catch (e: Exception) {
                 eventStream.emit(AgentEvent.ErrorEvent("LLM 调用失败: ${e.message}"))
                 break

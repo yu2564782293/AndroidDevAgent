@@ -4,7 +4,7 @@ import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 
 object ToolDefinitions {
 
-    fun allTools(): List<ChatCompletionRequest.ToolDefinition> = listOf(
+    fun builtInTools(): List<ChatCompletionRequest.ToolDefinition> = listOf(
         readFileTool(),
         writeFileTool(),
         editFileTool(),
@@ -711,6 +711,126 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("query")
+            )
+        )
+    )
+
+    fun skillManagementTools(): List<ChatCompletionRequest.ToolDefinition> = listOf(
+        skillSearchTool(),
+        skillInstallTool(),
+        skillListTool(),
+        skillUninstallTool(),
+        skillUpdateTool(),
+        skillConfigTool()
+    )
+
+    fun allTools(skillTools: List<ChatCompletionRequest.ToolDefinition> = emptyList()): List<ChatCompletionRequest.ToolDefinition> {
+        return builtInTools() + skillManagementTools() + skillTools
+    }
+
+    private fun skillSearchTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_search",
+            description = "搜索可安装的技能扩展。技能可以为 DEREK AI 添加新能力，如网页抓取、API测试、代码审查等。当现有工具无法完成任务时，搜索并安装相关技能。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "query" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "搜索关键词，如 'web scraping', 'api testing', 'code review'"
+                    )
+                ),
+                required = listOf("query")
+            )
+        )
+    )
+
+    private fun skillInstallTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_install",
+            description = "安装技能扩展。安装后技能提供的工具将立即可用。支持从 GitHub 仓库或 URL 安装。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "source" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "来源类型: 'github' 或 'url' (默认: github)"
+                    ),
+                    "repo" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "GitHub 仓库路径 (如 'derek-skills/web-scraper') 或技能 URL"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Git 分支 (可选, 默认: main)"
+                    )
+                ),
+                required = listOf("repo")
+            )
+        )
+    )
+
+    private fun skillListTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_list",
+            description = "列出所有已安装的技能扩展及其提供的工具。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(),
+                required = emptyList()
+            )
+        )
+    )
+
+    private fun skillUninstallTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_uninstall",
+            description = "卸载已安装的技能扩展。卸载后该技能提供的工具将不再可用。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "skill_id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "要卸载的技能 ID"
+                    )
+                ),
+                required = listOf("skill_id")
+            )
+        )
+    )
+
+    private fun skillUpdateTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_update",
+            description = "更新已安装的技能扩展到最新版本。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "skill_id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "要更新的技能 ID"
+                    )
+                ),
+                required = listOf("skill_id")
+            )
+        )
+    )
+
+    private fun skillConfigTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "skill_config",
+            description = "查看或修改技能扩展的配置项。不提供 key/value 时查看配置，提供时修改配置。",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "skill_id" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "技能 ID"
+                    ),
+                    "key" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "配置项名称 (可选, 不提供则查看所有配置)"
+                    ),
+                    "value" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "配置项值 (可选, 不提供则查看配置)"
+                    )
+                ),
+                required = listOf("skill_id")
             )
         )
     )

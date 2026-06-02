@@ -76,7 +76,7 @@ For local projects, use the file system tools:
 - Never guess at file contents - always read first
 
 ## Available tools
-${ToolDefinitions.allTools().joinToString("\n") { "- ${it.function.name}: ${it.function.description}" }}
+${ToolDefinitions.builtInTools().joinToString("\n") { "- ${it.function.name}: ${it.function.description}" }}
 """.trimIndent()
     }
 }

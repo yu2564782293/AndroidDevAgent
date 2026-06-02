@@ -4,6 +4,7 @@ import com.example.androiddevagent.agent.build.TermuxIntegration
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
 import com.example.androiddevagent.agent.vcs.GitHubApiService
+import com.example.androiddevagent.agent.skills.SkillManager
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -22,7 +23,8 @@ class ToolExecutor @Inject constructor(
     private val gitIntegration: GitIntegration,
     private val projectSummaryGenerator: ProjectSummaryGenerator,
     private val termuxIntegration: TermuxIntegration,
-    private val githubApiService: GitHubApiService
+    private val githubApiService: GitHubApiService,
+    private val skillManager: SkillManager
 ) {
 
     private var projectPath: String = ""
@@ -73,7 +75,15 @@ class ToolExecutor @Inject constructor(
             "github_commits" -> githubCommits(args)
             "github_create_pr" -> githubCreatePR(args)
             "github_search_code" -> githubSearchCode(args)
-            else -> ToolResult("未知工具: ${call.function.name}", false)
+            "skill_search" -> skillSearch(args)
+            "skill_install" -> skillInstall(args)
+            "skill_list" -> skillList()
+            "skill_uninstall" -> skillUninstall(args)
+            "skill_update" -> skillUpdate(args)
+            "skill_config" -> skillConfig(args)
+            else -> kotlinx.coroutines.runBlocking {
+                skillManager.executeSkillTool(call.function.name, parseArgs(call.function.arguments), projectPath)
+            }
         }
     }
 
@@ -1047,6 +1057,110 @@ class ToolExecutor @Inject constructor(
             )
         } catch (e: Exception) {
             ToolResult("GitHub API 错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillSearch(args: Map<String, String>): ToolResult {
+        val query = args["query"] ?: return ToolResult("缺少 'query' 参数", false)
+        return try {
+            val results = kotlinx.coroutines.runBlocking { skillManager.searchSkills(query) }
+            if (results.isEmpty()) {
+                ToolResult("未找到匹配 '$query' 的技能", true)
+            } else {
+                val listing = results.take(10).mapIndexed { idx, r ->
+                    val installedTag = if (r.installed) " [已安装]" else ""
+                    "${idx + 1}. ${r.icon} ${r.name} (${r.author}) ⭐${r.stars}$installedTag\n   ${r.description.take(80)}\n   来源: ${r.sourceUrl}"
+                }.joinToString("\n\n")
+                ToolResult("找到 ${results.size} 个技能:\n\n$listing", true)
+            }
+        } catch (e: Exception) {
+            ToolResult("技能搜索失败: ${e.message}", false)
+        }
+    }
+
+    private fun skillInstall(args: Map<String, String>): ToolResult {
+        val source = args["source"] ?: "github"
+        val repo = args["repo"] ?: return ToolResult("缺少 'repo' 参数", false)
+        val branch = args["branch"] ?: "main"
+        return try {
+            val result = kotlinx.coroutines.runBlocking { skillManager.installSkill(source, repo, branch) }
+            result.fold(
+                onSuccess = { skill ->
+                    val tools = skill.toolNames.joinToString(", ")
+                    ToolResult("技能安装成功: ${skill.icon} ${skill.name} v${skill.version}\n描述: ${skill.description}\n提供工具: $tools\n风险等级: ${skill.riskLevel}", true)
+                },
+                onFailure = { ToolResult("技能安装失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("技能安装错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillList(): ToolResult {
+        return try {
+            val skills = skillManager.getInstalledSkills()
+            if (skills.isEmpty()) {
+                ToolResult("尚未安装任何技能。使用 skill_search 搜索可用技能。", true)
+            } else {
+                val listing = skills.mapIndexed { idx, s ->
+                    val enabledTag = if (s.enabled) "✅" else "❌"
+                    val tools = s.toolNames.joinToString(", ")
+                    "$enabledTag ${s.icon} ${s.name} v${s.version} (${s.author})\n   ${s.description.take(60)}\n   工具: $tools"
+                }.joinToString("\n\n")
+                ToolResult("已安装 ${skills.size} 个技能:\n\n$listing", true)
+            }
+        } catch (e: Exception) {
+            ToolResult("获取技能列表失败: ${e.message}", false)
+        }
+    }
+
+    private fun skillUninstall(args: Map<String, String>): ToolResult {
+        val skillId = args["skill_id"] ?: return ToolResult("缺少 'skill_id' 参数", false)
+        return try {
+            val result = kotlinx.coroutines.runBlocking { skillManager.uninstallSkill(skillId) }
+            result.fold(
+                onSuccess = { ToolResult("技能已卸载: $skillId", true) },
+                onFailure = { ToolResult("卸载失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("卸载错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillUpdate(args: Map<String, String>): ToolResult {
+        val skillId = args["skill_id"] ?: return ToolResult("缺少 'skill_id' 参数", false)
+        return try {
+            val result = kotlinx.coroutines.runBlocking { skillManager.updateSkill(skillId) }
+            result.fold(
+                onSuccess = { skill -> ToolResult("技能已更新: ${skill.name} v${skill.version}", true) },
+                onFailure = { ToolResult("更新失败: ${it.message}", false) }
+            )
+        } catch (e: Exception) {
+            ToolResult("更新错误: ${e.message}", false)
+        }
+    }
+
+    private fun skillConfig(args: Map<String, String>): ToolResult {
+        val skillId = args["skill_id"] ?: return ToolResult("缺少 'skill_id' 参数", false)
+        val key = args["key"]
+        val value = args["value"]
+        return try {
+            if (key != null && value != null) {
+                val config = kotlinx.coroutines.runBlocking { skillManager.getSkillConfig(skillId) }.toMutableMap()
+                config[key] = value
+                kotlinx.coroutines.runBlocking { skillManager.saveSkillConfig(skillId, config) }
+                ToolResult("技能配置已更新: $skillId.$key = $value", true)
+            } else {
+                val config = kotlinx.coroutines.runBlocking { skillManager.getSkillConfig(skillId) }
+                if (config.isEmpty()) {
+                    ToolResult("技能 $skillId 无配置项", true)
+                } else {
+                    val listing = config.entries.joinToString("\n") { "- ${it.key}: ${it.value}" }
+                    ToolResult("技能 $skillId 配置:\n$listing", true)
+                }
+            }
+        } catch (e: Exception) {
+            ToolResult("配置操作失败: ${e.message}", false)
         }
     }
 }
