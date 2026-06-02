@@ -15,6 +15,24 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class GitHubUserRepo(
+    val fullName: String,
+    val name: String,
+    val owner: String,
+    val description: String,
+    val language: String?,
+    val defaultBranch: String,
+    val isPrivate: Boolean,
+    val htmlUrl: String,
+    val updatedAt: String
+)
+
+data class GitHubUserInfo(
+    val login: String,
+    val name: String,
+    val avatarUrl: String
+)
+
 data class GitHubRepoInfo(
     val owner: String,
     val repo: String,
@@ -75,6 +93,10 @@ class GitHubApiService @Inject constructor(
 
     fun isConfigured(): Boolean {
         return secureStorage.getGitToken("github").isNotEmpty() && currentRepo != null
+    }
+
+    fun hasToken(): Boolean {
+        return secureStorage.getGitToken("github").isNotEmpty()
     }
 
     private fun getToken(): String = secureStorage.getGitToken("github")
@@ -412,6 +434,44 @@ class GitHubApiService @Inject constructor(
         }
     }
 
+    suspend fun getCurrentUser(): Result<GitHubUserInfo> {
+        return try {
+            val url = apiUrl("/user")
+            val json = httpGet(url)
+            val user = gson.fromJson(json, GitHubUserResponse::class.java)
+            Result.success(GitHubUserInfo(
+                login = user.login,
+                name = user.name ?: user.login,
+                avatarUrl = user.avatarUrl
+            ))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun listUserRepos(page: Int = 1, perPage: Int = 30): Result<List<GitHubUserRepo>> {
+        return try {
+            val url = apiUrl("/user/repos?page=$page&per_page=$perPage&sort=updated&direction=desc")
+            val json = httpGet(url)
+            val repos = gson.fromJson(json, Array<GitHubUserRepoResponse>::class.java)
+            Result.success(repos.map { repo ->
+                GitHubUserRepo(
+                    fullName = repo.fullName,
+                    name = repo.name,
+                    owner = repo.owner?.login ?: "",
+                    description = repo.description ?: "",
+                    language = repo.language,
+                    defaultBranch = repo.defaultBranch,
+                    isPrivate = repo.private,
+                    htmlUrl = repo.htmlUrl,
+                    updatedAt = repo.updatedAt?.take(10) ?: ""
+                )
+            })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun decodeBase64(encoded: String): String {
         val cleaned = encoded.replace("\n", "").replace("\r", "")
         return String(Base64.decode(cleaned, Base64.NO_WRAP), Charsets.UTF_8)
@@ -499,5 +559,27 @@ class GitHubApiService @Inject constructor(
     private data class GitHubSearchItem(
         val name: String = "",
         val path: String = ""
+    )
+
+    private data class GitHubUserResponse(
+        val login: String = "",
+        val name: String? = "",
+        @SerializedName("avatar_url") val avatarUrl: String = ""
+    )
+
+    private data class GitHubUserRepoResponse(
+        @SerializedName("full_name") val fullName: String = "",
+        val name: String = "",
+        val owner: GitHubOwnerResponse? = null,
+        val description: String? = "",
+        val language: String? = "",
+        @SerializedName("default_branch") val defaultBranch: String = "main",
+        val `private`: Boolean = false,
+        @SerializedName("html_url") val htmlUrl: String = "",
+        @SerializedName("updated_at") val updatedAt: String? = ""
+    )
+
+    private data class GitHubOwnerResponse(
+        val login: String = ""
     )
 }

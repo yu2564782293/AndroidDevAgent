@@ -11,6 +11,8 @@ import com.example.androiddevagent.agent.share.ShareManager
 import com.example.androiddevagent.agent.tools.ToolExecutor
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.example.androiddevagent.agent.vcs.GitHubApiService
+import com.example.androiddevagent.agent.vcs.GitHubUserRepo
+import com.example.androiddevagent.agent.vcs.GitHubUserInfo
 import com.example.androiddevagent.data.ChatMessageDao
 import com.example.androiddevagent.data.ChatMessageEntity
 import com.example.androiddevagent.data.TaskRecordDao
@@ -32,7 +34,11 @@ data class AgentChatUiState(
     val sessionId: String = "",
     val gitStatus: String = "",
     val githubRepo: String = "",
-    val githubConnected: Boolean = false
+    val githubConnected: Boolean = false,
+    val githubUserInfo: GitHubUserInfo? = null,
+    val githubRepoList: List<GitHubUserRepo> = emptyList(),
+    val githubLoading: Boolean = false,
+    val githubError: String = ""
 )
 
 @HiltViewModel
@@ -225,6 +231,40 @@ class AgentChatViewModel @Inject constructor(
             githubRepo = "",
             githubConnected = false
         )
+    }
+
+    fun loadGitHubRepos() {
+        if (!githubApiService.hasToken()) {
+            _uiState.value = _uiState.value.copy(
+                githubError = "请先在设置中配置 GitHub Token",
+                githubLoading = false
+            )
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(githubLoading = true, githubError = "")
+            try {
+                val userResult = githubApiService.getCurrentUser()
+                val userInfo = userResult.getOrNull()
+                val reposResult = githubApiService.listUserRepos()
+                val repos = reposResult.getOrNull() ?: emptyList()
+                _uiState.value = _uiState.value.copy(
+                    githubUserInfo = userInfo,
+                    githubRepoList = repos,
+                    githubLoading = false,
+                    githubError = if (repos.isEmpty()) "没有找到仓库" else ""
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    githubLoading = false,
+                    githubError = "加载失败: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun selectGitHubRepo(repo: GitHubUserRepo) {
+        connectGitHubRepo(repo.owner, repo.name, repo.defaultBranch)
     }
 
     fun gitPush() {

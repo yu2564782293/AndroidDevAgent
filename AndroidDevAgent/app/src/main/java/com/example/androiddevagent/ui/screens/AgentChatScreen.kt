@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.agent.events.AgentEvent
+import com.example.androiddevagent.agent.vcs.GitHubUserRepo
+import com.example.androiddevagent.agent.vcs.GitHubUserInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,16 +123,17 @@ fun AgentChatScreen(
     if (showGitHubDialog) {
         ConnectGitHubDialog(
             onDismiss = { showGitHubDialog = false },
-            onConnect = { owner, repo, branch ->
-                viewModel.connectGitHubRepo(owner, repo, branch)
-                showGitHubDialog = false
-            },
+            onSelectRepo = { viewModel.selectGitHubRepo(it); showGitHubDialog = false },
             onDisconnect = {
                 viewModel.disconnectGitHubRepo()
-                showGitHubDialog = false
             },
+            onLoadRepos = { viewModel.loadGitHubRepos() },
             currentRepo = uiState.githubRepo,
-            isConnected = uiState.githubConnected
+            isConnected = uiState.githubConnected,
+            userInfo = uiState.githubUserInfo,
+            repoList = uiState.githubRepoList,
+            isLoading = uiState.githubLoading,
+            error = uiState.githubError
         )
     }
 
@@ -468,14 +471,23 @@ private fun CloneRepoDialog(
 @Composable
 private fun ConnectGitHubDialog(
     onDismiss: () -> Unit,
-    onConnect: (owner: String, repo: String, branch: String) -> Unit,
+    onSelectRepo: (GitHubUserRepo) -> Unit,
     onDisconnect: () -> Unit,
+    onLoadRepos: () -> Unit,
     currentRepo: String,
-    isConnected: Boolean
+    isConnected: Boolean,
+    userInfo: GitHubUserInfo?,
+    repoList: List<GitHubUserRepo>,
+    isLoading: Boolean,
+    error: String
 ) {
-    var owner by remember { mutableStateOf("") }
-    var repo by remember { mutableStateOf("") }
-    var branch by remember { mutableStateOf("main") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        if (!isConnected && repoList.isEmpty() && !isLoading && error.isEmpty()) {
+            onLoadRepos()
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -483,21 +495,16 @@ private fun ConnectGitHubDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("连接 GitHub 仓库")
+                Text("选择 GitHub 仓库")
             }
         },
         text = {
-            Column {
-                Text(
-                    "连接后，Agent 可以直接在云端仓库中读取、修改、创建文件，并自动提交。就像 AI 编程助手一样操作你的 GitHub 项目。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
                 if (isConnected) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -508,40 +515,88 @@ private fun ConnectGitHubDialog(
                             Text("已连接: $currentRepo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                OutlinedTextField(
-                    value = owner,
-                    onValueChange = { owner = it },
-                    label = { Text("仓库所有者 (用户名或组织)") },
-                    placeholder = { Text("yu2564782293") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = repo,
-                    onValueChange = { repo = it },
-                    label = { Text("仓库名称") },
-                    placeholder = { Text("AndroidDevAgent") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = branch,
-                    onValueChange = { branch = it },
-                    label = { Text("分支") },
-                    placeholder = { Text("main") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "前提: 需要在设置中配置 GitHub Token (需要 repo 权限)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                if (userInfo != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "${userInfo.name} 的仓库",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (repoList.isNotEmpty()) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("搜索仓库") },
+                        placeholder = { Text("输入仓库名称筛选...") },
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
+                } else if (error.isNotEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            if (error.contains("Token")) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("请在设置中配置 GitHub Token", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                        }
+                    }
+                } else if (repoList.isNotEmpty()) {
+                    val filtered = if (searchQuery.isBlank()) repoList else repoList.filter {
+                        it.fullName.contains(searchQuery, ignoreCase = true) ||
+                        it.description.contains(searchQuery, ignoreCase = true)
+                    }
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 320.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(filtered) { repo ->
+                            RepoItem(
+                                repo = repo,
+                                isSelected = repo.fullName == currentRepo,
+                                onClick = { onSelectRepo(repo) }
+                            )
+                        }
+                        if (filtered.isEmpty()) {
+                            item {
+                                Text("没有匹配的仓库", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                } else if (!isConnected) {
+                    Text(
+                        "配置 GitHub Token 后，你的仓库将自动显示在此处",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         },
         confirmButton = {
@@ -552,22 +607,91 @@ private fun ConnectGitHubDialog(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Button(
-                    onClick = { onConnect(owner, repo, branch) },
-                    enabled = owner.isNotBlank() && repo.isNotBlank()
-                ) {
-                    Icon(Icons.Filled.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("连接")
+                if (!isLoading && repoList.isEmpty() && error.isNotEmpty()) {
+                    TextButton(onClick = onLoadRepos) {
+                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("重试")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("关闭")
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+        dismissButton = {}
+    )
+}
+
+@Composable
+private fun RepoItem(
+    repo: GitHubUserRepo,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.surfaceVariant
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        repo.fullName,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    if (repo.isPrivate) {
+                        Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (repo.description.isNotEmpty()) {
+                    Text(
+                        repo.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row {
+                    if (repo.language != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Text(
+                                repo.language,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        "更新于 ${repo.updatedAt}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (isSelected) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            } else {
+                Icon(Icons.Filled.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-    )
+    }
 }
 
 private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
