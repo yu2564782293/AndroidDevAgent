@@ -35,7 +35,8 @@ data class FileNode(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectFilesScreen(
-    viewModel: ProjectFilesViewModel = hiltViewModel()
+    viewModel: ProjectFilesViewModel = hiltViewModel(),
+    onFileClick: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -140,6 +141,8 @@ fun ProjectFilesScreen(
                                 onClick = {
                                     if (node.isDirectory) {
                                         viewModel.toggleDirectory(node.path)
+                                    } else {
+                                        onFileClick(node.path)
                                     }
                                 }
                             )

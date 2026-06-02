@@ -13,25 +13,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.data.TaskRecordEntity
 import java.text.SimpleDateFormat
 import java.util.*
-
-enum class TaskStatus { COMPLETED, FAILED, INTERRUPTED }
-
-data class TaskRecord(
-    val id: String,
-    val task: String,
-    val status: TaskStatus,
-    val filesChanged: List<String>,
-    val summary: String,
-    val tokenUsage: Int,
-    val createdAt: Long,
-    val durationMs: Long
-)
-
-data class TaskHistoryUiState(
-    val tasks: List<TaskRecord> = emptyList()
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +42,10 @@ fun TaskHistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(uiState.tasks, key = { it.id }) { task ->
-                    TaskHistoryCard(task)
+                    TaskHistoryCard(
+                        task = task,
+                        onDelete = { viewModel.deleteTask(task) }
+                    )
                 }
             }
         }
@@ -95,20 +82,28 @@ private fun EmptyHistoryState() {
 }
 
 @Composable
-private fun TaskHistoryCard(task: TaskRecord) {
+private fun TaskHistoryCard(
+    task: TaskRecordEntity,
+    onDelete: () -> Unit
+) {
     val timeFormat = SimpleDateFormat("MM月dd日 HH:mm", Locale.CHINESE)
     val timeStr = timeFormat.format(Date(task.createdAt))
     val durationStr = formatDuration(task.durationMs)
 
     val statusIcon = when (task.status) {
-        TaskStatus.COMPLETED -> Icons.Filled.CheckCircle
-        TaskStatus.FAILED -> Icons.Filled.Error
-        TaskStatus.INTERRUPTED -> Icons.Filled.PauseCircle
+        "COMPLETED" -> Icons.Filled.CheckCircle
+        "FAILED" -> Icons.Filled.Error
+        else -> Icons.Filled.PauseCircle
     }
     val statusColor = when (task.status) {
-        TaskStatus.COMPLETED -> MaterialTheme.colorScheme.primary
-        TaskStatus.FAILED -> MaterialTheme.colorScheme.error
-        TaskStatus.INTERRUPTED -> MaterialTheme.colorScheme.tertiary
+        "COMPLETED" -> MaterialTheme.colorScheme.primary
+        "FAILED" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.tertiary
+    }
+    val statusText = when (task.status) {
+        "COMPLETED" -> "已完成"
+        "FAILED" -> "失败"
+        else -> "已中断"
     }
 
     Card(
@@ -125,6 +120,11 @@ private fun TaskHistoryCard(task: TaskRecord) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
+                )
+                Text(
+                    statusText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = statusColor
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -175,6 +175,16 @@ private fun TaskHistoryCard(task: TaskRecord) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
+            }
+            if (task.summary.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    task.summary.take(200),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

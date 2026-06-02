@@ -55,7 +55,12 @@ fun AgentChatScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            // TODO: process image for multimodal input
+            val path = getFilePathFromUri(context, it)
+            if (path != null) {
+                inputText = if (inputText.isBlank()) "[图片: $path]" else "$inputText\n[图片: $path]"
+            } else {
+                inputText = if (inputText.isBlank()) "[图片: ${it.lastPathSegment}]" else "$inputText\n[图片: ${it.lastPathSegment}]"
+            }
         }
     }
 
@@ -63,7 +68,22 @@ fun AgentChatScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
-            // TODO: process file attachment
+            val path = getFilePathFromUri(context, it)
+            if (path != null) {
+                val file = java.io.File(path)
+                if (file.exists() && file.length() < 50000) {
+                    try {
+                        val content = file.readText().take(2000)
+                        inputText = if (inputText.isBlank()) "[文件: $path]\n$content" else "$inputText\n[文件: $path]\n$content"
+                    } catch (_: Exception) {
+                        inputText = if (inputText.isBlank()) "[文件: $path]" else "$inputText\n[文件: $path]"
+                    }
+                } else {
+                    inputText = if (inputText.isBlank()) "[文件: $path]" else "$inputText\n[文件: $path]"
+                }
+            } else {
+                inputText = if (inputText.isBlank()) "[文件: ${it.lastPathSegment}]" else "$inputText\n[文件: ${it.lastPathSegment}]"
+            }
         }
     }
 
@@ -193,6 +213,20 @@ private fun getRealPathFromUri(context: android.content.Context, uri: Uri): Stri
         } catch (e2: Exception) {
             null
         }
+    }
+}
+
+private fun getFilePathFromUri(context: android.content.Context, uri: Uri): String? {
+    return try {
+        val docId = android.provider.DocumentsContract.getDocumentId(uri)
+        if (docId.startsWith("primary:")) {
+            val relativePath = docId.substringAfter("primary:")
+            if (relativePath.isEmpty()) "/sdcard" else "/sdcard/$relativePath"
+        } else {
+            null
+        }
+    } catch (_: Exception) {
+        uri.path
     }
 }
 

@@ -8,12 +8,15 @@ import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.events.EventStream
 import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.agent.tools.ToolExecutor
+import com.example.androiddevagent.data.TaskRecordDao
+import com.example.androiddevagent.data.TaskRecordEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 data class AgentChatUiState(
@@ -29,7 +32,8 @@ class AgentChatViewModel @Inject constructor(
     private val agentEngine: AgentEngine,
     private val eventStream: EventStream,
     private val llmProvider: LlmProvider,
-    private val toolExecutor: ToolExecutor
+    private val toolExecutor: ToolExecutor,
+    private val taskRecordDao: TaskRecordDao
 ) : ViewModel() {
 
     private val prefs by lazy {
@@ -40,6 +44,8 @@ class AgentChatViewModel @Inject constructor(
     val uiState: StateFlow<AgentChatUiState> = _uiState.asStateFlow()
 
     private var currentJob: kotlinx.coroutines.Job? = null
+    private var taskStartTime: Long = 0
+    private var currentTaskDescription: String = ""
 
     private fun loadInitialState(): AgentChatUiState {
         val projectPath = prefs.getString("project_path", "") ?: ""
@@ -60,16 +66,24 @@ class AgentChatViewModel @Inject constructor(
     }
 
     fun sendTask(task: String) {
+        currentTaskDescription = task
+        taskStartTime = System.currentTimeMillis()
         currentJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRunning = true)
+            var finalEvent: AgentEvent? = null
             agentEngine.run(task).collect { event ->
+                finalEvent = event
             }
+            val durationMs = System.currentTimeMillis() - taskStartTime
+            saveTaskRecord(task, finalEvent, durationMs)
             _uiState.value = _uiState.value.copy(isRunning = false)
         }
     }
 
     fun stopAgent() {
         currentJob?.cancel()
+        val durationMs = System.currentTimeMillis() - taskStartTime
+        saveTaskRecord(currentTaskDescription, null, durationMs, "INTERRUPTED")
         _uiState.value = _uiState.value.copy(isRunning = false)
     }
 
@@ -89,6 +103,47 @@ class AgentChatViewModel @Inject constructor(
         } catch (e: Exception) {
             prefs.edit().putString("project_path", path).apply()
             _uiState.value = _uiState.value.copy(projectPath = path)
+        }
+    }
+
+    private fun saveTaskRecord(
+        task: String,
+        finalEvent: AgentEvent?,
+        durationMs: Long,
+        overrideStatus: String? = null
+    ) {
+        viewModelScope.launch {
+            val status = overrideStatus ?: when (finalEvent) {
+                is AgentEvent.TaskCompleteEvent -> "COMPLETED"
+                is AgentEvent.StuckDetectedEvent -> "FAILED"
+                is AgentEvent.ErrorEvent -> "FAILED"
+                else -> "INTERRUPTED"
+            }
+            val summary = when (finalEvent) {
+                is AgentEvent.TaskCompleteEvent -> finalEvent.summary
+                is AgentEvent.StuckDetectedEvent -> finalEvent.reason
+                is AgentEvent.ErrorEvent -> finalEvent.message
+                else -> ""
+            }
+            val filesChanged = when (finalEvent) {
+                is AgentEvent.TaskCompleteEvent -> finalEvent.filesChanged
+                else -> emptyList()
+            }
+            val record = TaskRecordEntity(
+                id = UUID.randomUUID().toString(),
+                task = task,
+                status = status,
+                filesChanged = filesChanged,
+                summary = summary.take(500),
+                tokenUsage = 0,
+                createdAt = taskStartTime,
+                durationMs = durationMs,
+                projectPath = _uiState.value.projectPath
+            )
+            try {
+                taskRecordDao.insert(record)
+            } catch (_: Exception) {
+            }
         }
     }
 }

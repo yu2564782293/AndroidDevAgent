@@ -5,4 +5,5 @@ sealed class Screen(val route: String) {
     object ProjectFiles : Screen("project_files")
     object TaskHistory : Screen("task_history")
     object Settings : Screen("settings")
+    object CodeEditor : Screen("code_editor/{path}")
 }
