@@ -161,7 +161,7 @@ object ToolDefinitions {
                         description = "Gradle task to run (optional, default: assembleDebug)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -177,7 +177,7 @@ object ToolDefinitions {
                         description = "Specific test class to run (optional, runs all tests if not specified)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -197,7 +197,7 @@ object ToolDefinitions {
                         description = "Number of recent lines to return (optional, default: 50)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -244,7 +244,7 @@ object ToolDefinitions {
             description = "Analyze the project structure and return a comprehensive summary including modules, dependencies, key files, and manifest info. Use this to understand the project before making changes.",
             parameters = ChatCompletionRequest.Parameters(
                 properties = mapOf(),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -296,7 +296,7 @@ object ToolDefinitions {
                         description = "If true, show only stat summary instead of full diff (optional, default: true)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -307,7 +307,7 @@ object ToolDefinitions {
             description = "Undo the last Git commit. Changes are preserved in the working directory. Use this to rollback a bad change.",
             parameters = ChatCompletionRequest.Parameters(
                 properties = mapOf(),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -419,7 +419,7 @@ object ToolDefinitions {
                         description = "Branch name to push (optional, pushes current branch if not specified)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -439,7 +439,7 @@ object ToolDefinitions {
                         description = "Branch name to pull (optional, pulls current branch if not specified)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -591,7 +591,7 @@ object ToolDefinitions {
                         description = "Branch to list from (optional, defaults to current branch)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -650,7 +650,7 @@ object ToolDefinitions {
             description = "Get information about the connected GitHub repository: name, description, default branch, language, visibility, etc.",
             parameters = ChatCompletionRequest.Parameters(
                 properties = mapOf(),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
@@ -666,7 +666,7 @@ object ToolDefinitions {
                         description = "Number of recent commits to show (optional, default: 10)"
                     )
                 ),
-                required = listOf()
+                required = emptyList()
             )
         )
     )
