@@ -243,7 +243,7 @@ ${hiltActivityAnnotation}class MainActivity : ComponentActivity() {
 fun Greeting(name: String) {
     Text(
         text = "你好, \$name!",
-        modifier = Modifier.padding(androidx.compose.ui.unit.dp(16.dp))
+        modifier = Modifier.padding(16.dp)
     )
 }
 

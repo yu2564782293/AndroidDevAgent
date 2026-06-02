@@ -73,7 +73,7 @@ class NewProjectViewModel @Inject constructor(
             )
             _uiState.value = _uiState.value.copy(
                 isCreating = false,
-                result = result.getOrDefault("创建成功") ?: result.exceptionOrNull()?.message
+                result = result.getOrElse { it.message ?: "创建失败" }
             )
         }
     }
