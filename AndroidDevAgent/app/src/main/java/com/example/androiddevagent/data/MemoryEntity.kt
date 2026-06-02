@@ -10,11 +10,11 @@ import androidx.room.Index
         Index(value = ["projectId"], name = "idx_memory_project"),
         Index(value = ["timestamp"], name = "idx_memory_timestamp")
     ],
-    primaryKeys = ["category", "key", "projectId"]
+    primaryKeys = ["category", "memoryKey", "projectId"]
 )
 data class MemoryEntity(
     val category: String,
-    val key: String,
+    val memoryKey: String,
     val value: String,
     val projectId: String,
     val timestamp: Long = System.currentTimeMillis()

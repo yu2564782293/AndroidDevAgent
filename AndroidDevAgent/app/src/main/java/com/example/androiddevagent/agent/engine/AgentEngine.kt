@@ -57,9 +57,7 @@ class AgentEngine @Inject constructor(
         }
 
         val skillContext = androidSkills.getRelevantSkills(task)
-        val memoryContext = kotlinx.coroutines.runBlocking {
-            memoryManager.buildMemoryContext(projectPath)
-        }
+        val memoryContext = memoryManager.buildMemoryContext(projectPath)
         val systemPrompt = LlmConstants.buildSystemPrompt() +
                 (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
                 (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "") +

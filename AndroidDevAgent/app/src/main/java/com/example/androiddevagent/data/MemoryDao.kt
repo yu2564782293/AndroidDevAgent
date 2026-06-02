@@ -23,8 +23,8 @@ interface MemoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(memories: List<MemoryEntity>)
 
-    @Query("DELETE FROM agent_memories WHERE category = :category AND key = :key AND projectId = :projectId")
-    suspend fun delete(category: String, key: String, projectId: String)
+    @Query("DELETE FROM agent_memories WHERE category = :category AND memoryKey = :memoryKey AND projectId = :projectId")
+    suspend fun delete(category: String, memoryKey: String, projectId: String)
 
     @Query("DELETE FROM agent_memories WHERE projectId = :projectId")
     suspend fun deleteByProject(projectId: String)

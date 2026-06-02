@@ -13,7 +13,7 @@ class MemoryManager @Inject constructor(
     suspend fun remember(category: String, key: String, value: String, projectId: String = "") {
         memoryDao.upsert(MemoryEntity(
             category = category,
-            key = key,
+            memoryKey = key,
             value = value,
             projectId = projectId
         ))
@@ -21,7 +21,7 @@ class MemoryManager @Inject constructor(
 
     suspend fun recall(category: String, projectId: String = ""): Map<String, String> {
         return memoryDao.getByCategory(category, projectId)
-            .associate { it.key to it.value }
+            .associate { it.memoryKey to it.value }
     }
 
     suspend fun recallAll(projectId: String = ""): Map<String, Map<String, String>> {
@@ -31,7 +31,7 @@ class MemoryManager @Inject constructor(
             memoryDao.getAll()
         }
         return memories.groupBy { it.category }
-            .mapValues { entries -> entries.value.associate { it.key to it.value } }
+            .mapValues { entries -> entries.value.associate { it.memoryKey to it.value } }
     }
 
     suspend fun forget(category: String, key: String, projectId: String = "") {
