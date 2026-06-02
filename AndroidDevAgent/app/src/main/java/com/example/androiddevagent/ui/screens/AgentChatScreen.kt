@@ -436,6 +436,8 @@ private fun ToolCallBubble(name: String, args: Map<String, String>) {
         "write_file" -> "写入文件"
         "edit_file" -> "编辑文件"
         "list_files" -> "列出文件"
+        "glob" -> "搜索文件"
+        "grep" -> "搜索内容"
         "delete_file" -> "删除文件"
         "gradle_build" -> "Gradle 构建"
         "run_tests" -> "运行测试"
@@ -455,6 +457,7 @@ private fun ToolCallBubble(name: String, args: Map<String, String>) {
         "install_apk" -> "安装 APK"
         "launch_app" -> "启动应用"
         "ask_user" -> "询问用户"
+        "todo_write" -> "任务清单"
         else -> name
     }
 

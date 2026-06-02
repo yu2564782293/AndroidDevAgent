@@ -9,6 +9,8 @@ object ToolDefinitions {
         writeFileTool(),
         editFileTool(),
         listFilesTool(),
+        globTool(),
+        grepTool(),
         deleteFileTool(),
         gradleBuildTool(),
         runTestsTool(),
@@ -27,7 +29,8 @@ object ToolDefinitions {
         gitCloneTool(),
         gitPushTool(),
         gitPullTool(),
-        gitBranchTool()
+        gitBranchTool(),
+        todoWriteTool()
     )
 
     private fun readFileTool() = ChatCompletionRequest.ToolDefinition(
@@ -77,7 +80,7 @@ object ToolDefinitions {
     private fun editFileTool() = ChatCompletionRequest.ToolDefinition(
         function = ChatCompletionRequest.FunctionDef(
             name = "edit_file",
-            description = "Make a targeted search-and-replace edit to a file. Finds the exact old_text in the file and replaces it with new_text. The old_text must match exactly. After editing, a syntax check is performed automatically.",
+            description = "Make a targeted search-and-replace edit to a file. Finds the exact old_text in the file and replaces it with new_text. The old_text must match exactly. After editing, a syntax check is performed automatically. If old_text appears multiple times, set replace_all to true to replace all occurrences, or provide more context to make it unique.",
             parameters = ChatCompletionRequest.Parameters(
                 properties = mapOf(
                     "path" to ChatCompletionRequest.PropertyDef(
@@ -91,6 +94,10 @@ object ToolDefinitions {
                     "new_text" to ChatCompletionRequest.PropertyDef(
                         type = "string",
                         description = "The text to replace the old_text with"
+                    ),
+                    "replace_all" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Set to 'true' to replace all occurrences of old_text (optional, default: false). Use when you want to rename a variable or update repeated patterns."
                     )
                 ),
                 required = listOf("path", "old_text", "new_text")
@@ -444,6 +451,70 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("action")
+            )
+        )
+    )
+
+    private fun globTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "glob",
+            description = "Find files matching a glob pattern. Returns list of matching file paths relative to project root. Fast way to find files by name pattern. Examples: '**/*.kt' finds all Kotlin files, 'src/**/MainActivity.kt' finds MainActivity in any subdirectory.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "pattern" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Glob pattern to match (e.g. '**/*.kt', 'src/**/*.xml', '**/build.gradle')"
+                    ),
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Directory to search in, relative to project root (optional, default: project root)"
+                    )
+                ),
+                required = listOf("pattern")
+            )
+        )
+    )
+
+    private fun grepTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "grep",
+            description = "Search for a regex pattern in file contents. Returns matching lines with file paths and line numbers. More powerful than search_code - supports regex patterns. Automatically skips build/, .gradle/, .idea/ directories.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "pattern" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Regular expression pattern to search for"
+                    ),
+                    "path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Directory to search in, relative to project root (optional, default: project root)"
+                    ),
+                    "file_pattern" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "File extension filter (optional, e.g. '.kt', '.xml'). Searches all source files if not specified."
+                    ),
+                    "case_insensitive" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Set to 'true' for case-insensitive search (optional, default: false)"
+                    )
+                ),
+                required = listOf("pattern")
+            )
+        )
+    )
+
+    private fun todoWriteTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "todo_write",
+            description = "Update your task list. Use this to track progress on multi-step tasks. Write the current state of your todo list after completing each step. This helps you stay organized and not forget pending work.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "todos" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "JSON array of todo items, each with 'content' (string) and 'status' ('pending'|'in_progress'|'completed'). Example: [{\"content\":\"Read MainActivity.kt\",\"status\":\"completed\"},{\"content\":\"Add login screen\",\"status\":\"in_progress\"},{\"content\":\"Test login flow\",\"status\":\"pending\"}]"
+                    )
+                ),
+                required = listOf("todos")
             )
         )
     )

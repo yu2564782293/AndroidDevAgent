@@ -107,27 +107,45 @@ class ProjectSummaryGenerator @Inject constructor() {
     }
 
     private fun generateKotlinSummary(content: String): String {
-        val classes = Regex("(?:data )?class (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
-        val functions = Regex("fun (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
-        val composables = Regex("@Composable\\s+fun (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
+        val classes = Regex("(?:data |sealed |abstract |open |enum )?class (\\w+)(?:\\([^)]*\\))?(?:\\s*:\\s*[^{]+)?").findAll(content)
+            .map { it.groupValues[1] }.toList()
+        val interfaces = Regex("interface (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
+        val objects = Regex("object (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
+        val composables = Regex("@Composable\\s+(?:private\\s+)?fun (\\w+)\\(([^)]*)\\)").findAll(content)
+            .map { "${it.groupValues[1]}(${it.groupValues[2].take(40)})" }.toList()
+        val functions = Regex("(?:public |private |internal |suspend )?fun (\\w+)\\(([^)]*)\\)").findAll(content)
+            .map { "${it.groupValues[1]}(${it.groupValues[2].take(40)})" }.toList()
+        val composableNames = Regex("@Composable\\s+(?:private\\s+)?fun (\\w+)").findAll(content)
+            .map { it.groupValues[1] }.toList()
 
         val parts = mutableListOf<String>()
-        if (classes.isNotEmpty()) parts.add("类: ${classes.take(5).joinToString()}")
+        if (classes.isNotEmpty()) parts.add("class: ${classes.take(5).joinToString()}")
+        if (interfaces.isNotEmpty()) parts.add("interface: ${interfaces.take(3).joinToString()}")
+        if (objects.isNotEmpty()) parts.add("object: ${objects.take(3).joinToString()}")
         if (composables.isNotEmpty()) parts.add("@Composable: ${composables.take(5).joinToString()}")
-        else if (functions.isNotEmpty()) parts.add("函数: ${functions.take(5).joinToString()}")
+        else if (functions.isNotEmpty()) {
+            val nonComposable = functions.filter { f ->
+                composableNames.none { f.startsWith(it) }
+            }
+            if (nonComposable.isNotEmpty()) parts.add("fun: ${nonComposable.take(5).joinToString()}")
+        }
 
-        return if (parts.isEmpty()) "Kotlin 源文件" else parts.joinToString("; ")
+        return if (parts.isEmpty()) "Kotlin source" else parts.joinToString("; ")
     }
 
     private fun generateJavaSummary(content: String): String {
-        val classes = Regex("(?:public )?class (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
-        val methods = Regex("(?:public|private|protected) \\w+ (\\w+)\\(").findAll(content).map { it.groupValues[1] }.toList()
+        val classes = Regex("(?:public |abstract )?class (\\w+)(?:<[^>]+>)?(?:\\s+extends\\s+\\w+)?(?:\\s+implements\\s+[^{]+)?").findAll(content)
+            .map { it.groupValues[1] }.toList()
+        val interfaces = Regex("(?:public )?interface (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
+        val methods = Regex("(?:public|private|protected)\\s+(?:static\\s+)?(?:\\w+(?:<[^>]+>)?)\\s+(\\w+)\\(([^)]*)\\)").findAll(content)
+            .map { "${it.groupValues[1]}(${it.groupValues[2].take(40)})" }.toList()
 
         val parts = mutableListOf<String>()
-        if (classes.isNotEmpty()) parts.add("类: ${classes.take(5).joinToString()}")
-        if (methods.isNotEmpty()) parts.add("方法: ${methods.take(5).joinToString()}")
+        if (classes.isNotEmpty()) parts.add("class: ${classes.take(5).joinToString()}")
+        if (interfaces.isNotEmpty()) parts.add("interface: ${interfaces.take(3).joinToString()}")
+        if (methods.isNotEmpty()) parts.add("method: ${methods.take(5).joinToString()}")
 
-        return if (parts.isEmpty()) "Java 源文件" else parts.joinToString("; ")
+        return if (parts.isEmpty()) "Java source" else parts.joinToString("; ")
     }
 
     private fun parseGradleDependencies(projectDir: File): String {

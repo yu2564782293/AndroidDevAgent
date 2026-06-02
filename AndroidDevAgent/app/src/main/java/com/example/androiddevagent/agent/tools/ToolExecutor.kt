@@ -58,6 +58,9 @@ class ToolExecutor @Inject constructor(
             "git_pull" -> gitPull(args)
             "git_branch" -> gitBranch(args)
             "ask_user" -> askUser(args)
+            "glob" -> globFiles(args)
+            "grep" -> grepContent(args)
+            "todo_write" -> todoWrite(args)
             else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
@@ -103,6 +106,7 @@ class ToolExecutor @Inject constructor(
         val path = args["path"] ?: return ToolResult("缺少 'path' 参数", false)
         val oldText = args["old_text"] ?: return ToolResult("缺少 'old_text' 参数", false)
         val newText = args["new_text"] ?: return ToolResult("缺少 'new_text' 参数", false)
+        val replaceAll = args["replace_all"]?.toBoolean() ?: false
         val file = File(projectPath, path)
 
         if (!file.exists()) {
@@ -118,14 +122,15 @@ class ToolExecutor @Inject constructor(
             )
         }
 
-        if (content.indexOf(oldText) != content.lastIndexOf(oldText)) {
+        if (!replaceAll && content.indexOf(oldText) != content.lastIndexOf(oldText)) {
+            val occurrences = content.split(oldText).size - 1
             return ToolResult(
-                "要替换的文本在 $path 中出现多次，请提供更多上下文使其唯一。",
+                "要替换的文本在 $path 中出现 $occurrences 次。请提供更多上下文使其唯一，或设置 replace_all=true 替换所有。",
                 false
             )
         }
 
-        val newContent = content.replace(oldText, newText)
+        val newContent = if (replaceAll) content.replace(oldText, newText) else content.replaceFirst(oldText, newText)
         file.writeText(newContent)
 
         val lintResult = quickLint(path, newContent)
@@ -137,8 +142,9 @@ class ToolExecutor @Inject constructor(
             )
         }
 
+        val occurrences = if (replaceAll) content.split(oldText).size - 1 else 1
         val lineCount = newContent.lines().size
-        return ToolResult("编辑成功: $path ($lineCount 行)", true)
+        return ToolResult("编辑成功: $path (替换 $occurrences 处, $lineCount 行)", true)
     }
 
     private fun listFiles(args: Map<String, String>): ToolResult {
@@ -178,30 +184,77 @@ class ToolExecutor @Inject constructor(
             return ToolResult("项目目录不存在: $projectPath", false)
         }
 
-        val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
-        if (!gradlew.exists()) {
-            return ToolResult("项目中未找到 Gradle 包装器", false)
+        val gradlew = File(projectDir, "gradlew")
+        val gradleBat = File(projectDir, "gradlew.bat")
+
+        if (!gradlew.exists() && !gradleBat.exists()) {
+            val hasGradleHome = System.getenv("GRADLE_HOME") != null || 
+                File("/usr/local/bin/gradle").exists() ||
+                File("/usr/bin/gradle").exists()
+            if (hasGradleHome) {
+                return tryGradleCommand(projectDir, task)
+            }
+            return ToolResult(
+                "项目中未找到 Gradle 包装器 (gradlew)。\n" +
+                "解决方案：\n" +
+                "1. 在项目根目录运行: gradle wrapper\n" +
+                "2. 或从已有项目复制 gradlew 和 gradle/wrapper/ 目录\n" +
+                "3. 或通过 Termux 安装: pkg install gradle && gradle wrapper",
+                false
+            )
         }
 
+        if (gradlew.exists() && !gradlew.canExecute()) {
+            gradlew.setExecutable(true)
+        }
+
+        return tryTermuxOrLocal(projectDir, if (gradlew.exists()) "./gradlew" else "gradle", task)
+    }
+
+    private fun tryTermuxOrLocal(projectDir: File, gradleCmd: String, task: String): ToolResult {
+        val termuxResult = termuxIntegration.executeLocalCommand(
+            "$gradleCmd $task --stacktrace",
+            projectPath,
+            300000L
+        )
+        if (termuxResult.success) {
+            val summary = extractBuildSummary(termuxResult.output, true)
+            return ToolResult("构建成功: $task\n$summary", true)
+        }
+
+        val output = termuxResult.output
+        if (output.contains("Permission denied") || output.contains("not executable")) {
+            return try {
+                termuxIntegration.executeLocalCommand("chmod +x gradlew && ./gradlew $task --stacktrace", projectPath, 300000L)
+                val retryResult = termuxIntegration.executeLocalCommand("./gradlew $task --stacktrace", projectPath, 300000L)
+                if (retryResult.success) {
+                    val summary = extractBuildSummary(retryResult.output, true)
+                    ToolResult("构建成功: $task\n$summary", true)
+                } else {
+                    val errorSummary = extractErrorSummary(retryResult.output)
+                    ToolResult("构建失败: $task\n$errorSummary", false)
+                }
+            } catch (e: Exception) {
+                ToolResult("构建执行错误: ${e.message}\n提示: 确保已安装 Termux 并授予存储权限", false)
+            }
+        }
+
+        val errorSummary = extractErrorSummary(output)
+        return ToolResult("构建失败: $task\n$errorSummary", false)
+    }
+
+    private fun tryGradleCommand(projectDir: File, task: String): ToolResult {
         return try {
-            val process = ProcessBuilder()
-                .command(gradlew.absolutePath, task)
-                .directory(projectDir)
-                .redirectErrorStream(true)
-                .start()
-
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
-
-            if (process.exitValue() == 0) {
-                val summary = extractBuildSummary(output, true)
+            val result = termuxIntegration.executeLocalCommand("gradle $task --stacktrace", projectPath, 300000L)
+            if (result.success) {
+                val summary = extractBuildSummary(result.output, true)
                 ToolResult("构建成功: $task\n$summary", true)
             } else {
-                val errorSummary = extractErrorSummary(output)
+                val errorSummary = extractErrorSummary(result.output)
                 ToolResult("构建失败: $task\n$errorSummary", false)
             }
         } catch (e: Exception) {
-            ToolResult("构建执行错误: ${e.message}", false)
+            ToolResult("Gradle 命令不可用: ${e.message}", false)
         }
     }
 
@@ -213,29 +266,24 @@ class ToolExecutor @Inject constructor(
             return ToolResult("项目目录不存在: $projectPath", false)
         }
 
-        val gradlew = File(projectDir, if (File(projectDir, "gradlew").exists()) "gradlew" else "gradle")
+        val gradlew = File(projectDir, "gradlew")
         if (!gradlew.exists()) {
-            return ToolResult("项目中未找到 Gradle 包装器", false)
+            return ToolResult("项目中未找到 Gradle 包装器 (gradlew)，无法运行测试", false)
+        }
+        if (!gradlew.canExecute()) {
+            gradlew.setExecutable(true)
         }
 
         val task = if (testClass != null) {
-            "test --tests $testClass"
+            "./gradlew test --tests $testClass --stacktrace"
         } else {
-            "test"
+            "./gradlew test --stacktrace"
         }
 
         return try {
-            val process = ProcessBuilder()
-                .command(gradlew.absolutePath, *task.split(" ").toTypedArray())
-                .directory(projectDir)
-                .redirectErrorStream(true)
-                .start()
-
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
-
-            val testSummary = extractTestSummary(output)
-            if (process.exitValue() == 0) {
+            val result = termuxIntegration.executeLocalCommand(task, projectPath, 300000L)
+            val testSummary = extractTestSummary(result.output)
+            if (result.success) {
                 ToolResult("测试通过\n$testSummary", true)
             } else {
                 ToolResult("测试失败\n$testSummary", false)
@@ -654,5 +702,126 @@ class ToolExecutor @Inject constructor(
     private fun askUser(args: Map<String, String>): ToolResult {
         val question = args["question"] ?: return ToolResult("缺少 'question' 参数", false)
         return ToolResult("[等待用户回复] 问题: $question\n注意: 当前版本暂不支持实时交互，请将回答直接告诉 Agent。", true)
+    }
+
+    private fun globFiles(args: Map<String, String>): ToolResult {
+        val pattern = args["pattern"] ?: return ToolResult("缺少 'pattern' 参数", false)
+        val searchPath = args["path"] ?: "."
+        val dir = File(projectPath, searchPath)
+
+        if (!dir.exists() || !dir.isDirectory) {
+            return ToolResult("目录不存在: $searchPath", false)
+        }
+
+        val regex = globToRegex(pattern)
+        val results = mutableListOf<String>()
+
+        dir.walk().forEach { file ->
+            if (!file.isFile) return@forEach
+            if (file.absolutePath.contains("/build/")) return@forEach
+            if (file.absolutePath.contains("/.gradle/")) return@forEach
+            if (file.absolutePath.contains("/.idea/")) return@forEach
+            if (file.absolutePath.contains("/.git/")) return@forEach
+
+            val relativePath = file.relativeTo(File(projectPath)).path
+            if (regex.matches(relativePath)) {
+                results.add(relativePath)
+                if (results.size >= 50) return@forEach
+            }
+        }
+
+        return if (results.isEmpty()) {
+            ToolResult("未找到匹配 '$pattern' 的文件", true)
+        } else {
+            ToolResult("找到 ${results.size} 个文件:\n${results.joinToString("\n")}", true)
+        }
+    }
+
+    private fun grepContent(args: Map<String, String>): ToolResult {
+        val pattern = args["pattern"] ?: return ToolResult("缺少 'pattern' 参数", false)
+        val searchPath = args["path"] ?: "."
+        val filePattern = args["file_pattern"] ?: ""
+        val caseInsensitive = args["case_insensitive"]?.toBoolean() ?: false
+
+        val dir = File(projectPath, searchPath)
+        if (!dir.exists() || !dir.isDirectory) {
+            return ToolResult("目录不存在: $searchPath", false)
+        }
+
+        val regex = try {
+            if (caseInsensitive) Regex(pattern, RegexOption.IGNORE_CASE)
+            else Regex(pattern)
+        } catch (e: Exception) {
+            return ToolResult("无效的正则表达式: ${e.message}", false)
+        }
+
+        val extensions = if (filePattern.isNotEmpty()) {
+            listOf(filePattern)
+        } else {
+            listOf(".kt", ".java", ".xml", ".gradle", ".properties", ".kts", ".json", ".yaml", ".yml", ".toml")
+        }
+
+        val results = mutableListOf<String>()
+
+        dir.walk().forEach { file ->
+            if (!file.isFile) return@forEach
+            if (file.absolutePath.contains("/build/")) return@forEach
+            if (file.absolutePath.contains("/.gradle/")) return@forEach
+            if (file.absolutePath.contains("/.idea/")) return@forEach
+            if (file.absolutePath.contains("/.git/")) return@forEach
+            if (extensions.none { ext -> file.name.endsWith(ext) }) return@forEach
+
+            try {
+                val lines = file.readLines()
+                val relativePath = file.relativeTo(File(projectPath)).path
+                for ((index, line) in lines.withIndex()) {
+                    if (regex.containsMatchIn(line)) {
+                        results.add("$relativePath:${index + 1}: ${line.trim().take(120)}")
+                        if (results.size >= 30) break
+                    }
+                }
+            } catch (_: Exception) {
+            }
+            if (results.size >= 30) return@forEach
+        }
+
+        return if (results.isEmpty()) {
+            ToolResult("未找到匹配 '$pattern' 的内容", true)
+        } else {
+            ToolResult("找到 ${results.size} 处匹配:\n${results.joinToString("\n")}", true)
+        }
+    }
+
+    private var currentTodos: List<Map<String, String>> = emptyList()
+
+    private fun todoWrite(args: Map<String, String>): ToolResult {
+        val todosJson = args["todos"] ?: return ToolResult("缺少 'todos' 参数", false)
+        return try {
+            val type = object : TypeToken<List<Map<String, String>>>() {}.type
+            currentTodos = gson.fromJson(todosJson, type)
+            val summary = currentTodos.mapIndexed { idx, todo ->
+                val status = when (todo["status"]) {
+                    "completed" -> "✅"
+                    "in_progress" -> "🔄"
+                    else -> "⬜"
+                }
+                "$status ${idx + 1}. ${todo["content"]}"
+            }.joinToString("\n")
+            ToolResult("任务列表已更新:\n$summary", true)
+        } catch (e: Exception) {
+            ToolResult("无效的 todos 格式: ${e.message}", false)
+        }
+    }
+
+    private fun globToRegex(pattern: String): Regex {
+        var regex = pattern
+            .replace(".", "\\.")
+            .replace("**/", "(__ANYDIR__/)?")
+            .replace("**", "(__ANYDIR__/)?__ANY__")
+            .replace("*", "[^/]*")
+            .replace("?", "[^/]")
+            .replace("(__ANYDIR__/)?", "(?:.*/)?")
+            .replace("__ANY__", ".*")
+        return Regex("^$regex$")
     }
 }
