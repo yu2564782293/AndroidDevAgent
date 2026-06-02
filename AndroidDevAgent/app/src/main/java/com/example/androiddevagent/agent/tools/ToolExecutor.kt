@@ -3,9 +3,11 @@ package com.example.androiddevagent.agent.tools
 import com.example.androiddevagent.agent.build.TermuxIntegration
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
+import com.example.androiddevagent.agent.vcs.GitHubApiService
 import com.example.androiddevagent.agent.vcs.GitIntegration
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +22,7 @@ class ToolExecutor @Inject constructor(
     private val gitIntegration: GitIntegration,
     private val projectSummaryGenerator: ProjectSummaryGenerator,
     private val termuxIntegration: TermuxIntegration,
-    private val githubApiService: com.example.androiddevagent.agent.vcs.GitHubApiService
+    private val githubApiService: GitHubApiService
 ) {
 
     private var projectPath: String = ""
