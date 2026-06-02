@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -87,7 +86,7 @@ fun ProjectListScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        Icons.Filled.FolderOff,
+                        Icons.Filled.FolderOpen,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -231,13 +230,12 @@ private fun ProjectCard(
             .fillMaxWidth()
             .clickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        Row {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             if (isActive) {
                 Divider(
                     modifier = Modifier
                         .width(4.dp)
-                        .fillMaxHeight()
-                        .clipToBounds(),
+                        .fillMaxHeight(),
                     color = MaterialTheme.colorScheme.primary,
                     thickness = 4.dp
                 )
@@ -315,7 +313,7 @@ private fun ProjectCard(
                     if (project.gitBranch.isNotEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Filled.CallSplit,
+                                Icons.Filled.Info,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

@@ -44,8 +44,7 @@
 
         <service
             android:name=".service.AgentService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

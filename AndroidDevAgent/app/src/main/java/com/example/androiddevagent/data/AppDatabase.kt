@@ -36,7 +36,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "android_dev_agent_db"
-        ).fallbackToDestructiveMigration().build()
+        ).fallbackToDestructiveMigrationFrom(1).build()
     }
 
     @Provides

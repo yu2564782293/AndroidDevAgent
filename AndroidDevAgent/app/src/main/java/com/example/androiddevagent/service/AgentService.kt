@@ -5,7 +5,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.example.androiddevagent.MainActivity
+import com.example.androiddevagent.ui.MainActivity
 
 class AgentService : Service() {
 

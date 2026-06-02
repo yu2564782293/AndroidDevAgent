@@ -93,7 +93,7 @@ private fun TaskHistoryCard(
     val statusIcon = when (task.status) {
         "COMPLETED" -> Icons.Filled.CheckCircle
         "FAILED" -> Icons.Filled.Error
-        else -> Icons.Filled.PauseCircle
+        else -> Icons.Filled.Pause
     }
     val statusColor = when (task.status) {
         "COMPLETED" -> MaterialTheme.colorScheme.primary

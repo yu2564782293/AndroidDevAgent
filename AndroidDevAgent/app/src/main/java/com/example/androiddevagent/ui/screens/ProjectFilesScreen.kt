@@ -186,7 +186,7 @@ private fun EmptyProjectState(onSelectProject: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                Icons.Filled.FolderOff,
+                Icons.Filled.FolderOpen,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -223,7 +223,7 @@ private fun FileNodeItem(
         node.isDirectory -> Icons.Filled.Folder
         node.name.endsWith(".kt") -> Icons.Filled.Code
         node.name.endsWith(".java") -> Icons.Filled.Code
-        node.name.endsWith(".xml") -> Icons.Filled.DataObject
+        node.name.endsWith(".xml") -> Icons.Filled.Code
         node.name.endsWith(".gradle") || node.name.endsWith(".kts") -> Icons.Filled.Settings
         node.name.endsWith(".png") || node.name.endsWith(".jpg") || node.name.endsWith(".webp") -> Icons.Filled.Image
         else -> Icons.Filled.Description

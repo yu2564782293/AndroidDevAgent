@@ -263,7 +263,7 @@ private fun EmptyChatContent(
         modifier = Modifier.fillMaxWidth()
     ) {
         Icon(
-            Icons.Filled.SmartToy,
+            Icons.Filled.Android,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
@@ -351,7 +351,7 @@ private fun MessageBubble(content: String, isUser: Boolean) {
                 verticalAlignment = Alignment.Top
             ) {
                 Icon(
-                    if (isUser) Icons.Filled.Person else Icons.Filled.SmartToy,
+                    if (isUser) Icons.Filled.Person else Icons.Filled.Android,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                     tint = textColor
@@ -599,7 +599,7 @@ private fun AutoFixBubble(attempt: Int, maxAttempts: Int, errorSummary: String) 
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 "自动修复 第 $attempt/$maxAttempts 次",
@@ -675,7 +675,7 @@ private fun ConfirmationBar(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Security, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("确认操作: ${event.name}", style = MaterialTheme.typography.titleSmall)
             }
