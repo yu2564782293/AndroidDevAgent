@@ -155,8 +155,7 @@ fun CodeEditorScreen(
                                 lineHeight = 18.sp
                             ),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                containerColor = MaterialTheme.colorScheme.surface,
                                 focusedBorderColor = MaterialTheme.colorScheme.surface,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.surface
                             )
