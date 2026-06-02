@@ -4,11 +4,8 @@ import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.tools.ToolResult
 import com.example.androiddevagent.data.SkillDao
 import com.example.androiddevagent.data.SkillEntity
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SkillManager @Inject constructor(
+class SkillManager(
     private val skillDao: SkillDao,
     private val skillRuntime: SkillRuntime,
     private val skillInstaller: SkillInstaller,

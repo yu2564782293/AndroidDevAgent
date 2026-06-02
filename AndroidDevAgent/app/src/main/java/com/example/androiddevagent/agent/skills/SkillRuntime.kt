@@ -5,11 +5,8 @@ import com.example.androiddevagent.agent.tools.ToolResult
 import com.example.androiddevagent.data.SkillDao
 import com.example.androiddevagent.data.SkillEntity
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SkillRuntime @Inject constructor(
+class SkillRuntime(
     private val skillDao: SkillDao
 ) {
 

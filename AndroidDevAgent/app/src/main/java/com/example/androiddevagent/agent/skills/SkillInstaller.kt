@@ -5,11 +5,8 @@ import com.example.androiddevagent.data.SkillDao
 import com.example.androiddevagent.data.SkillEntity
 import java.io.File
 import java.net.URL
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SkillInstaller @Inject constructor(
+class SkillInstaller(
     private val context: Context,
     private val skillDao: SkillDao
 ) {

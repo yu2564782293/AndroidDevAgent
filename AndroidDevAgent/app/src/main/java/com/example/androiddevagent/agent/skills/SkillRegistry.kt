@@ -6,11 +6,8 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SkillRegistry @Inject constructor(
+class SkillRegistry(
     private val skillDao: SkillDao
 ) {
 
