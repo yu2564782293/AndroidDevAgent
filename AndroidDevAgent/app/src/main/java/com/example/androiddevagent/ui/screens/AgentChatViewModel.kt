@@ -73,8 +73,15 @@ class AgentChatViewModel @Inject constructor(
         currentJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRunning = true)
             var finalEvent: AgentEvent? = null
-            agentEngine.run(task).collect { event ->
-                finalEvent = event
+            try {
+                agentEngine.run(task).collect { event ->
+                    finalEvent = event
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                finalEvent = AgentEvent.StuckDetectedEvent("任务已被用户中断")
+            } catch (e: Exception) {
+                finalEvent = AgentEvent.ErrorEvent("任务执行异常: ${e.message}")
+                eventStream.emitSync(finalEvent as AgentEvent.ErrorEvent)
             }
             val durationMs = System.currentTimeMillis() - taskStartTime
             saveTaskRecord(task, finalEvent, durationMs)
@@ -98,14 +105,12 @@ class AgentChatViewModel @Inject constructor(
     }
 
     fun setProjectPath(path: String) {
+        prefs.edit().putString("project_path", path).apply()
         try {
-            prefs.edit().putString("project_path", path).apply()
             agentEngine.setProjectPath(path)
-            _uiState.value = _uiState.value.copy(projectPath = path)
-        } catch (e: Exception) {
-            prefs.edit().putString("project_path", path).apply()
-            _uiState.value = _uiState.value.copy(projectPath = path)
+        } catch (_: Exception) {
         }
+        _uiState.value = _uiState.value.copy(projectPath = path)
     }
 
     fun triggerBuild(task: String = "assembleDebug") {

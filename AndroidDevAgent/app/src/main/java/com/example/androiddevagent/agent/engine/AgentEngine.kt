@@ -48,6 +48,11 @@ class AgentEngine @Inject constructor(
     fun run(task: String): Flow<AgentEvent> = flow {
         eventStream.clear()
 
+        if (!llmProvider.isConfigured()) {
+            emit(AgentEvent.ErrorEvent("未配置 API Key，请先在设置中配置 LLM Provider 和 API Key"))
+            return@flow
+        }
+
         val skillContext = androidSkills.getRelevantSkills(task)
         val systemPrompt = LlmConstants.buildSystemPrompt() +
                 (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
@@ -72,13 +77,13 @@ class AgentEngine @Inject constructor(
 
         while (iterations++ < maxIterations) {
             val condensed = condenser.condense(
-                events = eventStream.history,
+                messages = messages,
                 systemPrompt = systemPrompt,
                 projectSummary = projectSummary
             )
 
             val response = try {
-                llmProvider.chatWithTools(condensed.messages, ToolDefinitions.allTools())
+                llmProvider.chatWithTools(condensed, ToolDefinitions.allTools())
             } catch (e: Exception) {
                 eventStream.emit(AgentEvent.ErrorEvent("LLM 调用失败: ${e.message}"))
                 break
@@ -86,15 +91,17 @@ class AgentEngine @Inject constructor(
 
             val assistantMessage = response.choices.firstOrNull()?.message
 
-            if (assistantMessage?.content != null && assistantMessage.content.isNotBlank()) {
-                eventStream.emit(AgentEvent.AssistantThought(assistantMessage.content))
+            val assistantContent = assistantMessage?.content ?: ""
+            if (assistantContent.isNotBlank()) {
+                eventStream.emit(AgentEvent.AssistantThought(assistantContent))
             }
 
             if (response.hasToolCalls()) {
                 val toolCalls = response.getToolCalls()
+
                 messages.add(ChatCompletionRequest.Message(
                     role = "assistant",
-                    content = assistantMessage?.content,
+                    content = assistantContent.ifBlank { null },
                     toolCalls = toolCalls
                 ))
 
@@ -113,7 +120,13 @@ class AgentEngine @Inject constructor(
 
                     eventStream.emit(AgentEvent.ToolCallEvent(callId, toolName, toolArgs))
 
-                    val result = toolExecutor.execute(toolCall)
+                    val result = try {
+                        toolExecutor.execute(toolCall)
+                    } catch (e: Exception) {
+                        com.example.androiddevagent.agent.tools.ToolResult(
+                            "工具执行异常: ${e.message}", false
+                        )
+                    }
                     eventStream.emit(AgentEvent.ToolResultEvent(callId, result.output, result.success))
 
                     if (result.success && toolName in listOf("write_file", "edit_file")) {
@@ -132,7 +145,10 @@ class AgentEngine @Inject constructor(
 
                         if (buildSuccess) {
                             consecutiveBuildFailures = 0
-                            gitIntegration.autoCommit("build: assembleDebug succeeded")
+                            try {
+                                gitIntegration.autoCommit("build: assembleDebug succeeded")
+                            } catch (_: Exception) {
+                            }
                         } else {
                             consecutiveBuildFailures++
                             if (consecutiveBuildFailures >= maxAutoFixAttempts) {
@@ -149,9 +165,11 @@ class AgentEngine @Inject constructor(
                         }
                     }
 
-                    if (result.success && toolName in listOf("write_file", "edit_file") &&
-                        toolName != "gradle_build") {
-                        gitIntegration.autoCommit("$toolName: ${toolArgs["path"]}")
+                    if (result.success && toolName in listOf("write_file", "edit_file")) {
+                        try {
+                            gitIntegration.autoCommit("$toolName: ${toolArgs["path"]}")
+                        } catch (_: Exception) {
+                        }
                     }
 
                     messages.add(ChatCompletionRequest.Message(
@@ -163,7 +181,10 @@ class AgentEngine @Inject constructor(
             } else {
                 val finalContent = response.getTextContent()
                 if (filesChanged.isNotEmpty()) {
-                    gitIntegration.autoCommit("task complete: ${task.take(50)}")
+                    try {
+                        gitIntegration.autoCommit("task complete: ${task.take(50)}")
+                    } catch (_: Exception) {
+                    }
                 }
                 eventStream.emit(AgentEvent.TaskCompleteEvent(
                     summary = finalContent,

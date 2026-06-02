@@ -1,6 +1,5 @@
 package com.example.androiddevagent.agent.memory
 
-import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,56 +13,54 @@ data class CondensedContext(
 class ContextCondenser @Inject constructor() {
 
     private val maxContextTokens = 8000
-    private val systemPromptReserve = 1000
+    private val systemPromptReserve = 1500
     private val projectSummaryReserve = 1500
-    private val recentEventsReserve = 4000
+    private val recentMessagesReserve = 4000
     private val oldSummaryReserve = 1000
     private val charsPerToken = 4
 
     fun condense(
-        events: List<AgentEvent>,
+        messages: List<ChatCompletionRequest.Message>,
         systemPrompt: String,
         projectSummary: String,
         currentFileContent: String = ""
-    ): CondensedContext {
-        val messages = mutableListOf<ChatCompletionRequest.Message>()
-
-        messages.add(ChatCompletionRequest.Message(
+    ): List<ChatCompletionRequest.Message> {
+        val systemMsg = ChatCompletionRequest.Message(
             role = "system",
             content = buildCondensedSystemPrompt(systemPrompt, projectSummary)
-        ))
+        )
 
-        val recentEvents = events.takeLast(20)
-        val oldEvents = events.dropLast(20)
+        val nonSystemMessages = messages.filter { it.role != "system" }
 
-        if (oldEvents.isNotEmpty()) {
-            val oldSummary = summarizeOldEvents(oldEvents)
-            messages.add(ChatCompletionRequest.Message(
-                role = "system",
-                content = "[Previous context summary]\n$oldSummary"
-            ))
+        if (estimateTokens(nonSystemMessages) <= maxContextTokens) {
+            return listOf(systemMsg) + nonSystemMessages
         }
 
-        for (event in recentEvents) {
-            val msg = eventToMessage(event) ?: continue
-            messages.add(msg)
+        val result = mutableListOf<ChatCompletionRequest.Message>()
+        result.add(systemMsg)
+
+        val summaryMsg = summarizeOldMessages(nonSystemMessages)
+        if (summaryMsg != null) {
+            result.add(summaryMsg)
         }
+
+        val recentMessages = takeRecentCompleteExchange(nonSystemMessages)
+        result.addAll(recentMessages)
 
         if (currentFileContent.isNotEmpty()) {
             val truncated = truncateToTokens(currentFileContent, 2000)
-            messages.add(ChatCompletionRequest.Message(
+            result.add(ChatCompletionRequest.Message(
                 role = "system",
                 content = "[Current file being edited]\n$truncated"
             ))
         }
 
-        val totalTokens = estimateTokens(messages)
-        return CondensedContext(messages, totalTokens)
+        return result
     }
 
     private fun buildCondensedSystemPrompt(systemPrompt: String, projectSummary: String): String {
         val sb = StringBuilder()
-        sb.append(systemPrompt)
+        sb.append(truncateToTokens(systemPrompt, systemPromptReserve))
         if (projectSummary.isNotEmpty()) {
             sb.append("\n\n## Project Summary\n")
             sb.append(truncateToTokens(projectSummary, projectSummaryReserve))
@@ -71,71 +68,64 @@ class ContextCondenser @Inject constructor() {
         return sb.toString()
     }
 
-    private fun summarizeOldEvents(events: List<AgentEvent>): String {
+    private fun summarizeOldMessages(messages: List<ChatCompletionRequest.Message>): ChatCompletionRequest.Message? {
+        if (messages.size <= 10) return null
+
+        val oldMessages = messages.dropLast(10)
         val sb = StringBuilder()
-        val toolCalls = events.filterIsInstance<AgentEvent.ToolCallEvent>()
-        val toolResults = events.filterIsInstance<AgentEvent.ToolResultEvent>()
-        val thoughts = events.filterIsInstance<AgentEvent.AssistantThought>()
+        sb.append("[Previous context summary]\n")
 
-        if (thoughts.isNotEmpty()) {
-            sb.append("Agent thoughts: ")
-            sb.append(thoughts.last().content.take(200))
-            sb.append("\n")
-        }
-
+        val toolCalls = oldMessages.filter { it.role == "assistant" && it.toolCalls != null }
+            .flatMap { it.toolCalls ?: emptyList() }
         if (toolCalls.isNotEmpty()) {
             sb.append("Actions taken: ")
-            val actionSummary = toolCalls.takeLast(5).joinToString(", ") { call ->
-                val argsStr = call.args.entries.take(2).joinToString(", ") { "${it.key}=${it.value.take(20)}" }
-                "${call.name}($argsStr)"
-            }
-            sb.append(actionSummary)
+            sb.append(toolCalls.takeLast(5).joinToString(", ") { call ->
+                "${call.function.name}(...)"
+            })
             sb.append("\n")
         }
 
-        val failures = toolResults.filter { !it.success }
+        val toolResults = oldMessages.filter { it.role == "tool" }
+        val failures = toolResults.filter {
+            it.content?.contains("失败", ignoreCase = true) == true ||
+            it.content?.contains("error", ignoreCase = true) == true ||
+            it.content?.contains("failed", ignoreCase = true) == true
+        }
         if (failures.isNotEmpty()) {
             sb.append("Errors encountered: ")
-            sb.append(failures.takeLast(3).joinToString("; ") { it.output.take(100) })
+            sb.append(failures.takeLast(3).joinToString("; ") {
+                it.content?.take(100) ?: ""
+            })
             sb.append("\n")
         }
 
-        return sb.toString()
+        val userMessages = oldMessages.filter { it.role == "user" }
+        if (userMessages.isNotEmpty()) {
+            sb.append("User requests: ")
+            sb.append(userMessages.last().content?.take(200) ?: "")
+            sb.append("\n")
+        }
+
+        val summary = sb.toString()
+        return if (summary.length > 20) {
+            ChatCompletionRequest.Message(
+                role = "system",
+                content = truncateToTokens(summary, oldSummaryReserve)
+            )
+        } else {
+            null
+        }
     }
 
-    private fun eventToMessage(event: AgentEvent): ChatCompletionRequest.Message? {
-        return when (event) {
-            is AgentEvent.UserMessage -> ChatCompletionRequest.Message(
-                role = "user",
-                content = event.content
-            )
-            is AgentEvent.AssistantThought -> ChatCompletionRequest.Message(
-                role = "assistant",
-                content = event.content
-            )
-            is AgentEvent.ToolCallEvent -> {
-                val argsJson = event.args.entries.joinToString(", ") {
-                    "\"${it.key}\": \"${it.value.take(100)}\""
-                }
-                ChatCompletionRequest.Message(
-                    role = "assistant",
-                    content = "[Tool call: ${event.name} {$argsJson}]"
-                )
-            }
-            is AgentEvent.ToolResultEvent -> ChatCompletionRequest.Message(
-                role = "user",
-                content = "[Tool result (${if (event.success) "success" else "failed"})]: ${event.output.take(500)}"
-            )
-            is AgentEvent.BuildResultEvent -> ChatCompletionRequest.Message(
-                role = "user",
-                content = "[Build ${if (event.success) "succeeded" else "failed"}]: ${event.output.take(300)}"
-            )
-            is AgentEvent.AutoFixEvent -> ChatCompletionRequest.Message(
-                role = "user",
-                content = "[Auto-fix attempt ${event.attempt}/${event.maxAttempts}]: ${event.errorSummary.take(200)}"
-            )
-            else -> null
+    private fun takeRecentCompleteExchange(messages: List<ChatCompletionRequest.Message>): List<ChatCompletionRequest.Message> {
+        val recent = messages.takeLast(20)
+
+        val firstAssistantIdx = recent.indexOfFirst { it.role == "assistant" }
+        if (firstAssistantIdx > 0) {
+            return recent.drop(firstAssistantIdx)
         }
+
+        return recent
     }
 
     private fun truncateToTokens(text: String, maxTokens: Int): String {
@@ -150,7 +140,10 @@ class ContextCondenser @Inject constructor() {
     private fun estimateTokens(messages: List<ChatCompletionRequest.Message>): Int {
         return messages.sumOf { msg ->
             val contentLength = (msg.content?.length ?: 0)
-            contentLength / charsPerToken
+            val toolCallsLength = msg.toolCalls?.sumOf { tc ->
+                tc.function.arguments.length + tc.function.name.length
+            } ?: 0
+            (contentLength + toolCallsLength) / charsPerToken
         }
     }
 }

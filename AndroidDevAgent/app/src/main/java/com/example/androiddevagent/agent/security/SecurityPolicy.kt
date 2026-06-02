@@ -13,7 +13,7 @@ enum class SecurityLevel {
 @Singleton
 class SecurityPolicy @Inject constructor() {
 
-    var level: SecurityLevel = SecurityLevel.DANGEROUS_CONFIRM
+    var level: SecurityLevel = SecurityLevel.AUTO_CONFIRM
 
     private val dangerousTools = setOf(
         "delete_file",

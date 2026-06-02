@@ -57,6 +57,7 @@ class ToolExecutor @Inject constructor(
             "git_push" -> gitPush(args)
             "git_pull" -> gitPull(args)
             "git_branch" -> gitBranch(args)
+            "ask_user" -> askUser(args)
             else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
@@ -648,5 +649,10 @@ class ToolExecutor @Inject constructor(
             }
             else -> ToolResult("未知分支操作: $action (支持: list, create, switch)", false)
         }
+    }
+
+    private fun askUser(args: Map<String, String>): ToolResult {
+        val question = args["question"] ?: return ToolResult("缺少 'question' 参数", false)
+        return ToolResult("[等待用户回复] 问题: $question\n注意: 当前版本暂不支持实时交互，请将回答直接告诉 Agent。", true)
     }
 }

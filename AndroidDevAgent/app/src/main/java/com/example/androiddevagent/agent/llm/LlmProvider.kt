@@ -1,6 +1,5 @@
 package com.example.androiddevagent.agent.llm
 
-import com.example.androiddevagent.agent.tools.ToolDefinitions
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,27 +36,23 @@ class LlmProvider @Inject constructor() {
         messages: List<ChatCompletionRequest.Message>,
         tools: List<ChatCompletionRequest.ToolDefinition>
     ): ChatCompletionResponse {
-        if (!isConfigured()) {
-            return simulateResponse(messages, tools)
-        }
-
         return withContext(Dispatchers.IO) {
-            try {
-                val request = ChatCompletionRequest(
-                    model = modelName,
-                    messages = messages,
-                    tools = tools,
-                    temperature = 0.3,
-                    maxTokens = 4096
-                )
+            val request = ChatCompletionRequest(
+                model = modelName,
+                messages = messages,
+                tools = tools,
+                temperature = 0.3,
+                maxTokens = 4096
+            )
 
-                val currentApi = api ?: buildApi()
+            val currentApi = api ?: buildApi()
+            try {
                 currentApi.createChatCompletion(
                     authorization = "Bearer $apiKey",
                     request = request
                 )
             } catch (e: Exception) {
-                throw e
+                throw Exception("API 调用失败 (${modelName}@${baseUrl}): ${e.message}", e)
             }
         }
     }
@@ -68,6 +64,9 @@ class LlmProvider @Inject constructor() {
 
         val client = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
@@ -77,67 +76,5 @@ class LlmProvider @Inject constructor() {
             .build()
 
         return retrofit.create(LlmApi::class.java)
-    }
-
-    private fun simulateResponse(
-        messages: List<ChatCompletionRequest.Message>,
-        tools: List<ChatCompletionRequest.ToolDefinition>
-    ): ChatCompletionResponse {
-        val lastUserMsg = messages.lastOrNull { it.role == "user" }?.content ?: ""
-        val lastToolResult = messages.lastOrNull { it.role == "tool" }?.content
-
-        val content = if (lastToolResult != null) {
-            if (lastToolResult.contains("Build", ignoreCase = true) || lastToolResult.contains("gradle", ignoreCase = true)) {
-                "I see the build result. Let me check if there are any issues."
-            } else {
-                "I see the result. Let me continue working on the task."
-            }
-        } else {
-            "I'll help you with that. Let me start by examining the project structure."
-        }
-
-        val toolCall = if (lastToolResult == null) {
-            ChatCompletionRequest.ToolCall(
-                id = "call_${System.currentTimeMillis()}",
-                type = "function",
-                function = ChatCompletionRequest.FunctionCall(
-                    name = "list_files",
-                    arguments = """{"path": "."}"""
-                )
-            )
-        } else if (lastToolResult.contains("Directory", ignoreCase = true)) {
-            ChatCompletionRequest.ToolCall(
-                id = "call_${System.currentTimeMillis()}",
-                type = "function",
-                function = ChatCompletionRequest.FunctionCall(
-                    name = "read_file",
-                    arguments = """{"path": "build.gradle"}"""
-                )
-            )
-        } else {
-            ChatCompletionRequest.ToolCall(
-                id = "call_${System.currentTimeMillis()}",
-                type = "function",
-                function = ChatCompletionRequest.FunctionCall(
-                    name = "gradle_build",
-                    arguments = """{"task": "assembleDebug"}"""
-                )
-            )
-        }
-
-        return ChatCompletionResponse(
-            id = "sim_${System.currentTimeMillis()}",
-            choices = listOf(
-                ChatCompletionResponse.Choice(
-                    index = 0,
-                    message = ChatCompletionResponse.ResponseMessage(
-                        role = "assistant",
-                        content = content,
-                        toolCalls = listOf(toolCall)
-                    ),
-                    finishReason = "tool_calls"
-                )
-            )
-        )
     }
 }

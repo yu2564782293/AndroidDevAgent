@@ -25,7 +25,7 @@ data class SettingsUiState(
     val baseUrl: String = LlmConstants.DEFAULT_BASE_URL,
     val modelName: String = LlmConstants.DEFAULT_MODEL,
     val projectPath: String = "",
-    val securityLevel: SecurityLevel = SecurityLevel.DANGEROUS_CONFIRM,
+    val securityLevel: SecurityLevel = SecurityLevel.AUTO_CONFIRM,
     val saved: Boolean = false,
     val selectedProvider: String = "openai",
     val providers: List<LlmProviderConfig> = LlmProviderConfig.BUILT_IN_PROVIDERS,
@@ -73,12 +73,12 @@ class SettingsViewModel @Inject constructor(
         val apiKey = secureStorage.getApiKey(activeProvider)
         val (baseUrl, modelName) = secureStorage.getProviderConfig(activeProvider)
         val projectPath = prefs.getString("project_path", "") ?: ""
-        val securityLevelName = prefs.getString("security_level", SecurityLevel.DANGEROUS_CONFIRM.name)
-            ?: SecurityLevel.DANGEROUS_CONFIRM.name
+        val securityLevelName = prefs.getString("security_level", SecurityLevel.AUTO_CONFIRM.name)
+            ?: SecurityLevel.AUTO_CONFIRM.name
         val securityLevel = try {
             SecurityLevel.valueOf(securityLevelName)
         } catch (e: Exception) {
-            SecurityLevel.DANGEROUS_CONFIRM
+            SecurityLevel.AUTO_CONFIRM
         }
         val tokenBudget = secureStorage.getTokenBudget()
         val gitToken = secureStorage.getGitToken("github")
