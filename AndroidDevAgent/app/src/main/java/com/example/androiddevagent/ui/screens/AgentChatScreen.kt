@@ -109,13 +109,21 @@ fun AgentChatScreen(
                 .padding(paddingValues)
         ) {
             if (uiState.events.isEmpty() && !uiState.isRunning) {
-                EmptyChatState(
-                    projectPath = uiState.projectPath,
-                    onProjectClick = { folderPicker.launch(null) },
-                    onSuggestionClick = { suggestion ->
-                        inputText = suggestion
-                    }
-                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    EmptyChatContent(
+                        projectPath = uiState.projectPath,
+                        onProjectClick = { folderPicker.launch(null) },
+                        onSuggestionClick = { suggestion ->
+                            inputText = suggestion
+                        }
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier
@@ -189,59 +197,55 @@ private fun getRealPathFromUri(context: android.content.Context, uri: Uri): Stri
 }
 
 @Composable
-private fun EmptyChatState(
+private fun EmptyChatContent(
     projectPath: String,
     onProjectClick: () -> Unit,
     onSuggestionClick: (String) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Filled.SmartToy,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Android 开发助手",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "描述一个任务，助手将自主完成它",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            if (projectPath.isEmpty()) {
-                Button(onClick = onProjectClick) {
-                    Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("选择项目目录")
-                }
-            } else {
-                AssistChip(
-                    onClick = onProjectClick,
-                    label = { Text(projectPath.substringAfterLast("/")) },
-                    leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                )
+        Icon(
+            Icons.Filled.SmartToy,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "安卓开发助手",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "描述一个任务，助手将自主完成它",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        if (projectPath.isEmpty()) {
+            Button(onClick = onProjectClick) {
+                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("选择项目目录")
             }
-            Spacer(modifier = Modifier.height(32.dp))
-            Text("试试说：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-            SuggestionChip(onClick = { onSuggestionClick("添加一个登录界面") }, label = { Text("添加一个登录界面") })
-            Spacer(modifier = Modifier.height(4.dp))
-            SuggestionChip(onClick = { onSuggestionClick("修复构建错误") }, label = { Text("修复构建错误") })
-            Spacer(modifier = Modifier.height(4.dp))
-            SuggestionChip(onClick = { onSuggestionClick("添加深色模式支持") }, label = { Text("添加深色模式支持") })
+        } else {
+            AssistChip(
+                onClick = onProjectClick,
+                label = { Text(projectPath.substringAfterLast("/")) },
+                leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp)) }
+            )
         }
+        Spacer(modifier = Modifier.height(32.dp))
+        Text("试试说：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+        SuggestionChip(onClick = { onSuggestionClick("添加一个登录界面") }, label = { Text("添加一个登录界面") })
+        Spacer(modifier = Modifier.height(4.dp))
+        SuggestionChip(onClick = { onSuggestionClick("修复构建错误") }, label = { Text("修复构建错误") })
+        Spacer(modifier = Modifier.height(4.dp))
+        SuggestionChip(onClick = { onSuggestionClick("添加深色模式支持") }, label = { Text("添加深色模式支持") })
     }
 }
 
