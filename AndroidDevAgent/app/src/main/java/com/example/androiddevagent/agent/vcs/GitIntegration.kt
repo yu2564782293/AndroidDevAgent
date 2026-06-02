@@ -1,5 +1,6 @@
 package com.example.androiddevagent.agent.vcs
 
+import com.example.androiddevagent.agent.build.TermuxIntegration
 import com.example.androiddevagent.data.SecureStorage
 import java.io.File
 import javax.inject.Inject
@@ -12,7 +13,8 @@ data class GitResult(
 
 @Singleton
 class GitIntegration @Inject constructor(
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val termuxIntegration: TermuxIntegration
 ) {
 
     private var projectPath: String = ""
@@ -28,7 +30,7 @@ class GitIntegration @Inject constructor(
     }
 
     fun init(): GitResult {
-        return executeGit("init")
+        return executeGit("git init")
     }
 
     fun autoCommit(message: String): GitResult {
@@ -37,40 +39,41 @@ class GitIntegration @Inject constructor(
             if (!initResult.success) return initResult
         }
 
-        val addResult = executeGit("add", "-A")
+        val addResult = executeGit("git add -A")
         if (!addResult.success) return addResult
 
-        val statusResult = executeGit("status", "--porcelain")
+        val statusResult = executeGit("git status --porcelain")
         if (statusResult.output.isBlank()) {
             return GitResult(true, "No changes to commit")
         }
 
-        return executeGit("commit", "-m", message)
+        val escapedMessage = message.replace("\"", "\\\"").replace("'", "'\\''")
+        return executeGit("git commit -m '$escapedMessage'")
     }
 
     fun getDiff(): GitResult {
         if (!isGitRepo()) return GitResult(false, "Not a git repository")
-        return executeGit("diff", "HEAD")
+        return executeGit("git diff HEAD")
     }
 
     fun getDiffStat(): GitResult {
         if (!isGitRepo()) return GitResult(false, "Not a git repository")
-        return executeGit("diff", "--stat", "HEAD")
+        return executeGit("git diff --stat HEAD")
     }
 
     fun revertLastCommit(): GitResult {
         if (!isGitRepo()) return GitResult(false, "Not a git repository")
-        return executeGit("reset", "--soft", "HEAD~1")
+        return executeGit("git reset --soft HEAD~1")
     }
 
     fun getLog(count: Int = 10): GitResult {
         if (!isGitRepo()) return GitResult(false, "Not a git repository")
-        return executeGit("log", "--oneline", "-$count")
+        return executeGit("git log --oneline -$count")
     }
 
     fun getStatus(): GitResult {
         if (!isGitRepo()) return GitResult(false, "Not a git repository")
-        return executeGit("status", "--short")
+        return executeGit("git status --short")
     }
 
     fun clone(url: String, directory: String): GitResult {
@@ -79,75 +82,72 @@ class GitIntegration @Inject constructor(
             return GitResult(false, "目标目录不为空: $directory")
         }
         val authUrl = authenticateUrl(url)
-        return executeGitInDir(targetDir.parentFile ?: File("/sdcard"), "clone", authUrl, directory)
+        targetDir.parentFile?.mkdirs()
+        val parentDir = targetDir.parentFile?.absolutePath ?: "/sdcard"
+        val dirName = targetDir.name
+        return executeGitInDir(parentDir, "git clone $authUrl $dirName")
     }
 
     fun push(remote: String = "origin", branch: String = ""): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
         configureAuth()
-        return if (branch.isNotEmpty()) {
-            executeGit("push", remote, branch)
-        } else {
-            executeGit("push", remote)
-        }
+        val branchArg = if (branch.isNotEmpty()) " $branch" else ""
+        return executeGit("git push $remote$branchArg")
     }
 
     fun pull(remote: String = "origin", branch: String = ""): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
         configureAuth()
-        return if (branch.isNotEmpty()) {
-            executeGit("pull", remote, branch)
-        } else {
-            executeGit("pull", remote)
-        }
+        val branchArg = if (branch.isNotEmpty()) " $branch" else ""
+        return executeGit("git pull $remote$branchArg")
     }
 
     fun fetch(remote: String = "origin"): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
         configureAuth()
-        return executeGit("fetch", remote)
+        return executeGit("git fetch $remote")
     }
 
     fun createBranch(name: String): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
-        return executeGit("checkout", "-b", name)
+        return executeGit("git checkout -b $name")
     }
 
     fun switchBranch(name: String): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
-        return executeGit("checkout", name)
+        return executeGit("git checkout $name")
     }
 
     fun listBranches(): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
-        return executeGit("branch", "-a")
+        return executeGit("git branch -a")
     }
 
     fun getCurrentBranch(): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
-        return executeGit("rev-parse", "--abbrev-ref", "HEAD")
+        return executeGit("git rev-parse --abbrev-ref HEAD")
     }
 
     fun addRemote(name: String, url: String): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
         val authUrl = authenticateUrl(url)
-        val existing = executeGit("remote")
+        val existing = executeGit("git remote")
         if (existing.output.lines().contains(name)) {
-            return executeGit("remote", "set-url", name, authUrl)
+            return executeGit("git remote set-url $name $authUrl")
         }
-        return executeGit("remote", "add", name, authUrl)
+        return executeGit("git remote add $name $authUrl")
     }
 
     fun getRemotes(): GitResult {
         if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
-        return executeGit("remote", "-v")
+        return executeGit("git remote -v")
     }
 
     private fun configureAuth() {
         val token = secureStorage.getGitToken("github")
         if (token.isNotEmpty()) {
             try {
-                executeGit("config", "credential.helper", "store")
+                executeGit("git config credential.helper store")
             } catch (_: Exception) {
             }
         }
@@ -162,7 +162,7 @@ class GitIntegration @Inject constructor(
         return url
     }
 
-    private fun executeGit(vararg args: String): GitResult {
+    private fun executeGit(command: String): GitResult {
         if (projectPath.isEmpty()) {
             return GitResult(false, "未设置项目路径")
         }
@@ -172,14 +172,34 @@ class GitIntegration @Inject constructor(
             return GitResult(false, "项目目录不存在: $projectPath")
         }
 
-        return executeGitInDir(projectDir, *args)
+        return executeGitInDir(projectPath, command)
     }
 
-    private fun executeGitInDir(dir: File, vararg args: String): GitResult {
+    private fun executeGitInDir(workingDir: String, command: String): GitResult {
+        val termuxResult = termuxIntegration.executeLocalCommand(
+            command,
+            workingDir,
+            120000L
+        )
+
+        if (termuxResult.success) {
+            return GitResult(true, termuxResult.output)
+        }
+
+        val output = termuxResult.output
+        if (output.contains("bash:") && output.contains("not found")) {
+            return tryProcessBuilder(workingDir, command)
+        }
+
+        return GitResult(false, output)
+    }
+
+    private fun tryProcessBuilder(workingDir: String, command: String): GitResult {
         return try {
+            val parts = command.split(" ")
             val process = ProcessBuilder()
-                .command(listOf("git") + args.toList())
-                .directory(dir)
+                .command(parts)
+                .directory(File(workingDir))
                 .redirectErrorStream(true)
                 .start()
 
@@ -192,7 +212,7 @@ class GitIntegration @Inject constructor(
                 GitResult(false, output.trim())
             }
         } catch (e: Exception) {
-            GitResult(false, "Git 错误: ${e.message}")
+            GitResult(false, "Git 不可用: ${e.message}\n提示: 请安装 Termux 并在其中运行 pkg install git")
         }
     }
 }

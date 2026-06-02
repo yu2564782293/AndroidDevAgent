@@ -36,6 +36,8 @@ fun AgentChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
+    var showCloneDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -104,6 +106,17 @@ fun AgentChatScreen(
         }
     }
 
+    if (showCloneDialog) {
+        CloneRepoDialog(
+            onDismiss = { showCloneDialog = false },
+            onClone = { url, directory ->
+                viewModel.cloneRepo(url, directory)
+                showCloneDialog = false
+            },
+            defaultDirectory = "/sdcard/Projects"
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -123,16 +136,6 @@ fun AgentChatScreen(
                     }
                 },
                 actions = {
-                    if (uiState.events.isNotEmpty() && !uiState.isRunning) {
-                        IconButton(onClick = { viewModel.shareReport(context) }) {
-                            Icon(Icons.Filled.Share, contentDescription = "分享报告", modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
-                        IconButton(onClick = { viewModel.triggerBuild() }) {
-                            Icon(Icons.Filled.Build, contentDescription = "构建项目", modifier = Modifier.size(20.dp))
-                        }
-                    }
                     if (uiState.isRunning) {
                         FilledTonalButton(
                             onClick = { viewModel.stopAgent() },
@@ -141,6 +144,87 @@ fun AgentChatScreen(
                             Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("停止", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "更多", modifier = Modifier.size(20.dp))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
+                                DropdownMenuItem(
+                                    text = { Text("构建项目") },
+                                    onClick = {
+                                        viewModel.triggerBuild()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("克隆仓库") },
+                                onClick = {
+                                    showCloneDialog = true
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            )
+                            if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
+                                DropdownMenuItem(
+                                    text = { Text("Git 推送") },
+                                    onClick = {
+                                        viewModel.gitPush()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Git 拉取") },
+                                    onClick = {
+                                        viewModel.gitPull()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Git 状态") },
+                                    onClick = {
+                                        viewModel.refreshGitStatus()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.Source, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                            }
+                            if (uiState.events.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("分享报告") },
+                                    onClick = {
+                                        viewModel.shareReport(context)
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("清除聊天") },
+                                    onClick = {
+                                        viewModel.clearCurrentChat()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("新会话") },
+                                onClick = {
+                                    viewModel.startNewSession()
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            )
                         }
                     }
                 },
@@ -155,6 +239,46 @@ fun AgentChatScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            if (uiState.gitStatus.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Source,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            uiState.gitStatus.take(100),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { viewModel.refreshGitStatus() },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
             if (uiState.events.isEmpty() && !uiState.isRunning) {
                 Box(
                     modifier = Modifier
@@ -166,12 +290,15 @@ fun AgentChatScreen(
                     EmptyChatContent(
                         projectPath = uiState.projectPath,
                         onProjectClick = { folderPicker.launch(null) },
+                        onCloneClick = { showCloneDialog = true },
                         onSuggestionClick = { suggestion ->
                             inputText = suggestion
                         },
                         onBuildClick = { viewModel.triggerBuild() },
                         onInstallApkClick = { viewModel.triggerInstallApk() },
-                        onRunTestsClick = { viewModel.triggerRunTests() }
+                        onRunTestsClick = { viewModel.triggerRunTests() },
+                        onGitPushClick = { viewModel.gitPush() },
+                        onGitPullClick = { viewModel.gitPull() }
                     )
                 }
             } else {
@@ -241,6 +368,75 @@ fun AgentChatScreen(
     }
 }
 
+@Composable
+private fun CloneRepoDialog(
+    onDismiss: () -> Unit,
+    onClone: (url: String, directory: String) -> Unit,
+    defaultDirectory: String
+) {
+    var repoUrl by remember { mutableStateOf("") }
+    var targetDir by remember { mutableStateOf(defaultDirectory) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("克隆云端仓库")
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    "输入 Git 仓库地址，助手将自动克隆到本地",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = repoUrl,
+                    onValueChange = { repoUrl = it },
+                    label = { Text("仓库地址") },
+                    placeholder = { Text("https://github.com/user/repo.git") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = targetDir,
+                    onValueChange = { targetDir = it },
+                    label = { Text("目标目录") },
+                    placeholder = { Text(defaultDirectory) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "提示: 在设置中配置 GitHub Token 后可推送代码",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onClone(repoUrl, targetDir) },
+                enabled = repoUrl.isNotBlank() && targetDir.isNotBlank()
+            ) {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("克隆")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
 private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
     return try {
         val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
@@ -283,10 +479,13 @@ private fun getFilePathFromUri(context: android.content.Context, uri: Uri): Stri
 private fun EmptyChatContent(
     projectPath: String,
     onProjectClick: () -> Unit,
+    onCloneClick: () -> Unit,
     onSuggestionClick: (String) -> Unit,
     onBuildClick: () -> Unit,
     onInstallApkClick: () -> Unit,
-    onRunTestsClick: () -> Unit
+    onRunTestsClick: () -> Unit,
+    onGitPushClick: () -> Unit,
+    onGitPullClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -316,6 +515,12 @@ private fun EmptyChatContent(
                 Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("选择项目目录")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onCloneClick) {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("克隆云端仓库")
             }
         } else {
             AssistChip(
@@ -353,6 +558,36 @@ private fun EmptyChatContent(
                     Text("测试", style = MaterialTheme.typography.labelMedium)
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                FilledTonalButton(
+                    onClick = onGitPushClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("推送", style = MaterialTheme.typography.labelMedium)
+                }
+                FilledTonalButton(
+                    onClick = onGitPullClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("拉取", style = MaterialTheme.typography.labelMedium)
+                }
+                FilledTonalButton(
+                    onClick = onCloneClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Source, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("克隆", style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
         Spacer(modifier = Modifier.height(32.dp))
         Text("试试说：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -362,6 +597,8 @@ private fun EmptyChatContent(
         SuggestionChip(onClick = { onSuggestionClick("修复构建错误") }, label = { Text("修复构建错误") })
         Spacer(modifier = Modifier.height(4.dp))
         SuggestionChip(onClick = { onSuggestionClick("添加深色模式支持") }, label = { Text("添加深色模式支持") })
+        Spacer(modifier = Modifier.height(4.dp))
+        SuggestionChip(onClick = { onSuggestionClick("克隆 https://github.com/user/repo") }, label = { Text("克隆 GitHub 仓库") })
     }
 }
 

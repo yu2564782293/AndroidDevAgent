@@ -9,6 +9,9 @@ import com.example.androiddevagent.agent.events.EventStream
 import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.agent.share.ShareManager
 import com.example.androiddevagent.agent.tools.ToolExecutor
+import com.example.androiddevagent.agent.vcs.GitIntegration
+import com.example.androiddevagent.data.ChatMessageDao
+import com.example.androiddevagent.data.ChatMessageEntity
 import com.example.androiddevagent.data.TaskRecordDao
 import com.example.androiddevagent.data.TaskRecordEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +27,9 @@ data class AgentChatUiState(
     val events: List<AgentEvent> = emptyList(),
     val isRunning: Boolean = false,
     val projectPath: String = "",
-    val awaitingConfirmation: AgentEvent.AwaitingConfirmationEvent? = null
+    val awaitingConfirmation: AgentEvent.AwaitingConfirmationEvent? = null,
+    val sessionId: String = "",
+    val gitStatus: String = ""
 )
 
 @HiltViewModel
@@ -35,7 +40,9 @@ class AgentChatViewModel @Inject constructor(
     private val llmProvider: LlmProvider,
     private val toolExecutor: ToolExecutor,
     private val taskRecordDao: TaskRecordDao,
-    private val shareManager: ShareManager
+    private val shareManager: ShareManager,
+    private val chatMessageDao: ChatMessageDao,
+    private val gitIntegration: GitIntegration
 ) : ViewModel() {
 
     private val prefs by lazy {
@@ -51,19 +58,80 @@ class AgentChatViewModel @Inject constructor(
 
     private fun loadInitialState(): AgentChatUiState {
         val projectPath = prefs.getString("project_path", "") ?: ""
+        val savedSessionId = prefs.getString("session_id", "") ?: ""
         if (projectPath.isNotEmpty()) {
             agentEngine.setProjectPath(projectPath)
         }
-        return AgentChatUiState(projectPath = projectPath)
+        return AgentChatUiState(
+            projectPath = projectPath,
+            sessionId = if (savedSessionId.isNotEmpty()) savedSessionId else UUID.randomUUID().toString()
+        )
     }
 
     init {
+        viewModelScope.launch {
+            loadChatHistory()
+        }
+
         viewModelScope.launch {
             eventStream.events.collect { event ->
                 _uiState.value = _uiState.value.copy(
                     events = _uiState.value.events + event
                 )
+                saveEventToDb(event)
             }
+        }
+    }
+
+    private suspend fun loadChatHistory() {
+        val sessionId = _uiState.value.sessionId
+        try {
+            val entities = chatMessageDao.getBySession(sessionId)
+            if (entities.isNotEmpty()) {
+                val events = entities.map { entity ->
+                    AgentEvent.fromJson(entity.eventType, entity.contentJson)
+                }
+                _uiState.value = _uiState.value.copy(events = events)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun saveEventToDb(event: AgentEvent) {
+        viewModelScope.launch {
+            try {
+                val entity = ChatMessageEntity(
+                    sessionId = _uiState.value.sessionId,
+                    eventType = event.eventType(),
+                    contentJson = event.toJson(),
+                    timestamp = System.currentTimeMillis(),
+                    projectPath = _uiState.value.projectPath
+                )
+                chatMessageDao.insert(entity)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun startNewSession() {
+        val newSessionId = UUID.randomUUID().toString()
+        prefs.edit().putString("session_id", newSessionId).apply()
+        eventStream.clear()
+        _uiState.value = _uiState.value.copy(
+            events = emptyList(),
+            sessionId = newSessionId,
+            awaitingConfirmation = null,
+            gitStatus = ""
+        )
+    }
+
+    fun clearCurrentChat() {
+        viewModelScope.launch {
+            try {
+                chatMessageDao.deleteBySession(_uiState.value.sessionId)
+            } catch (_: Exception) {
+            }
+            startNewSession()
         }
     }
 
@@ -111,6 +179,35 @@ class AgentChatViewModel @Inject constructor(
         } catch (_: Exception) {
         }
         _uiState.value = _uiState.value.copy(projectPath = path)
+    }
+
+    fun cloneRepo(url: String, directory: String) {
+        sendTask("克隆仓库 $url 到 $directory")
+    }
+
+    fun gitPush() {
+        sendTask("将当前更改推送到远程仓库")
+    }
+
+    fun gitPull() {
+        sendTask("从远程仓库拉取最新更改")
+    }
+
+    fun refreshGitStatus() {
+        viewModelScope.launch {
+            try {
+                val status = gitIntegration.getStatus()
+                val branch = gitIntegration.getCurrentBranch()
+                val statusText = buildString {
+                    if (branch.success) append("分支: ${branch.output}\n")
+                    if (status.success) append(status.output)
+                    else append("未初始化 Git 仓库")
+                }
+                _uiState.value = _uiState.value.copy(gitStatus = statusText)
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(gitStatus = "Git 不可用")
+            }
+        }
     }
 
     fun triggerBuild(task: String = "assembleDebug") {
