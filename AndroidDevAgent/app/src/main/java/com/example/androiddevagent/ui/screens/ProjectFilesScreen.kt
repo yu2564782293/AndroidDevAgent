@@ -45,6 +45,14 @@ fun ProjectFilesScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: Exception) {
+            }
             val path = getRealPathFromUri(context, it)
             if (path != null) {
                 viewModel.setProjectPath(path)
@@ -144,12 +152,27 @@ fun ProjectFilesScreen(
 }
 
 private fun getRealPathFromUri(context: android.content.Context, uri: Uri): String? {
-    val docId = android.provider.DocumentsContract.getDocumentId(uri)
-    if (docId.startsWith("primary:")) {
-        val relativePath = docId.substringAfter("primary:")
-        return "/sdcard/$relativePath"
+    return try {
+        val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+        if (docId.startsWith("primary:")) {
+            val relativePath = docId.substringAfter("primary:")
+            if (relativePath.isEmpty()) "/sdcard" else "/sdcard/$relativePath"
+        } else {
+            null
+        }
+    } catch (e: Exception) {
+        try {
+            val docId = android.provider.DocumentsContract.getDocumentId(uri)
+            if (docId.startsWith("primary:")) {
+                val relativePath = docId.substringAfter("primary:")
+                if (relativePath.isEmpty()) "/sdcard" else "/sdcard/$relativePath"
+            } else {
+                null
+            }
+        } catch (e2: Exception) {
+            null
+        }
     }
-    return null
 }
 
 @Composable

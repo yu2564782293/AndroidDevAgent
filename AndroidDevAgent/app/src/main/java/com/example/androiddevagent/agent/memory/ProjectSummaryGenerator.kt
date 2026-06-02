@@ -1,6 +1,7 @@
 package com.example.androiddevagent.agent.memory
 
 import java.io.File
+import java.io.FileNotFoundException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,8 +23,8 @@ class ProjectSummaryGenerator @Inject constructor() {
 
     fun generate(projectPath: String): ProjectSummary {
         val projectDir = File(projectPath)
-        if (!projectDir.exists()) {
-            return ProjectSummary("Project not found", emptyList(), "", "")
+        if (!projectDir.exists() || !projectDir.isDirectory) {
+            return ProjectSummary("项目目录不存在", emptyList(), "", "")
         }
 
         val structure = generateDirectoryTree(projectDir, maxDepth = 3)
@@ -38,7 +39,11 @@ class ProjectSummaryGenerator @Inject constructor() {
         if (currentDepth >= maxDepth) return ""
         val indent = "  ".repeat(currentDepth)
         val sb = StringBuilder()
-        val files = dir.listFiles()?.sortedBy { !it.isDirectory } ?: return ""
+        val files = try {
+            dir.listFiles()?.sortedBy { !it.isDirectory }
+        } catch (e: SecurityException) {
+            return "${indent}⚠️ 无权限访问\n"
+        } ?: return ""
         for (file in files) {
             if (file.name.startsWith(".") && file.name != ".github") continue
             if (file.name in listOf("build", ".gradle", ".idea", "node_modules", ".git")) continue
@@ -53,40 +58,49 @@ class ProjectSummaryGenerator @Inject constructor() {
     private fun analyzeKeyFiles(projectDir: File): List<FileSummary> {
         val summaries = mutableListOf<FileSummary>()
         val keyPatterns = listOf(
-            "build.gradle" to "Gradle build configuration",
-            "settings.gradle" to "Gradle settings",
-            "AndroidManifest.xml" to "Android manifest",
-            "proguard-rules.pro" to "ProGuard configuration"
+            "build.gradle" to "Gradle 构建配置",
+            "settings.gradle" to "Gradle 设置",
+            "AndroidManifest.xml" to "Android 清单文件",
+            "proguard-rules.pro" to "ProGuard 配置"
         )
 
         for ((pattern, defaultSummary) in keyPatterns) {
             findFiles(projectDir, pattern).forEach { file ->
-                summaries.add(FileSummary(
-                    path = file.relativeTo(projectDir).path,
-                    summary = defaultSummary,
-                    lineCount = file.readLines().size
-                ))
+                try {
+                    summaries.add(FileSummary(
+                        path = file.relativeTo(projectDir).path,
+                        summary = defaultSummary,
+                        lineCount = file.readLines().size
+                    ))
+                } catch (_: Exception) {
+                }
             }
         }
 
         findFiles(projectDir, ".kt").take(20).forEach { file ->
-            val content = file.readText()
-            val summary = generateKotlinSummary(content)
-            summaries.add(FileSummary(
-                path = file.relativeTo(projectDir).path,
-                summary = summary,
-                lineCount = content.lines().size
-            ))
+            try {
+                val content = file.readText()
+                val summary = generateKotlinSummary(content)
+                summaries.add(FileSummary(
+                    path = file.relativeTo(projectDir).path,
+                    summary = summary,
+                    lineCount = content.lines().size
+                ))
+            } catch (_: Exception) {
+            }
         }
 
         findFiles(projectDir, ".java").take(10).forEach { file ->
-            val content = file.readText()
-            val summary = generateJavaSummary(content)
-            summaries.add(FileSummary(
-                path = file.relativeTo(projectDir).path,
-                summary = summary,
-                lineCount = content.lines().size
-            ))
+            try {
+                val content = file.readText()
+                val summary = generateJavaSummary(content)
+                summaries.add(FileSummary(
+                    path = file.relativeTo(projectDir).path,
+                    summary = summary,
+                    lineCount = content.lines().size
+                ))
+            } catch (_: Exception) {
+            }
         }
 
         return summaries
@@ -98,11 +112,11 @@ class ProjectSummaryGenerator @Inject constructor() {
         val composables = Regex("@Composable\\s+fun (\\w+)").findAll(content).map { it.groupValues[1] }.toList()
 
         val parts = mutableListOf<String>()
-        if (classes.isNotEmpty()) parts.add("classes: ${classes.take(5).joinToString()}")
+        if (classes.isNotEmpty()) parts.add("类: ${classes.take(5).joinToString()}")
         if (composables.isNotEmpty()) parts.add("@Composable: ${composables.take(5).joinToString()}")
-        else if (functions.isNotEmpty()) parts.add("functions: ${functions.take(5).joinToString()}")
+        else if (functions.isNotEmpty()) parts.add("函数: ${functions.take(5).joinToString()}")
 
-        return if (parts.isEmpty()) "Kotlin source file" else parts.joinToString("; ")
+        return if (parts.isEmpty()) "Kotlin 源文件" else parts.joinToString("; ")
     }
 
     private fun generateJavaSummary(content: String): String {
@@ -110,48 +124,59 @@ class ProjectSummaryGenerator @Inject constructor() {
         val methods = Regex("(?:public|private|protected) \\w+ (\\w+)\\(").findAll(content).map { it.groupValues[1] }.toList()
 
         val parts = mutableListOf<String>()
-        if (classes.isNotEmpty()) parts.add("classes: ${classes.take(5).joinToString()}")
-        if (methods.isNotEmpty()) parts.add("methods: ${methods.take(5).joinToString()}")
+        if (classes.isNotEmpty()) parts.add("类: ${classes.take(5).joinToString()}")
+        if (methods.isNotEmpty()) parts.add("方法: ${methods.take(5).joinToString()}")
 
-        return if (parts.isEmpty()) "Java source file" else parts.joinToString("; ")
+        return if (parts.isEmpty()) "Java 源文件" else parts.joinToString("; ")
     }
 
     private fun parseGradleDependencies(projectDir: File): String {
         val buildFile = findFiles(projectDir, "build.gradle").firstOrNull() ?: return ""
-        val content = buildFile.readText()
-        val deps = Regex("implementation ['\"]([^'\"]+)['\"]").findAll(content)
-            .map { it.groupValues[1] }.toList()
-        return if (deps.isEmpty()) "" else deps.joinToString("\n")
+        return try {
+            val content = buildFile.readText()
+            val deps = Regex("implementation ['\"]([^'\"]+)['\"]").findAll(content)
+                .map { it.groupValues[1] }.toList()
+            if (deps.isEmpty()) "" else deps.joinToString("\n")
+        } catch (_: Exception) {
+            ""
+        }
     }
 
     private fun parseManifest(projectDir: File): String {
         val manifestFile = findFiles(projectDir, "AndroidManifest.xml").firstOrNull() ?: return ""
-        val content = manifestFile.readText()
+        return try {
+            val content = manifestFile.readText()
 
-        val package_ = Regex("package=\"([^\"]+)\"").find(content)?.groupValues?.get(1) ?: ""
-        val activities = Regex("<activity[^>]*android:name=\"([^\"]+)\"").findAll(content)
-            .map { it.groupValues[1] }.toList()
-        val permissions = Regex("<uses-permission[^>]*android:name=\"([^\"]+)\"").findAll(content)
-            .map { it.groupValues[1] }.toList()
+            val package_ = Regex("package=\"([^\"]+)\"").find(content)?.groupValues?.get(1) ?: ""
+            val activities = Regex("<activity[^>]*android:name=\"([^\"]+)\"").findAll(content)
+                .map { it.groupValues[1] }.toList()
+            val permissions = Regex("<uses-permission[^>]*android:name=\"([^\"]+)\"").findAll(content)
+                .map { it.groupValues[1] }.toList()
 
-        val sb = StringBuilder()
-        sb.append("Package: $package_\n")
-        if (activities.isNotEmpty()) sb.append("Activities: ${activities.joinToString()}\n")
-        if (permissions.isNotEmpty()) sb.append("Permissions: ${permissions.joinToString()}\n")
+            val sb = StringBuilder()
+            sb.append("包名: $package_\n")
+            if (activities.isNotEmpty()) sb.append("Activity: ${activities.joinToString()}\n")
+            if (permissions.isNotEmpty()) sb.append("权限: ${permissions.joinToString()}\n")
 
-        return sb.toString()
+            sb.toString()
+        } catch (_: Exception) {
+            ""
+        }
     }
 
     private fun findFiles(dir: File, suffix: String): List<File> {
         val result = mutableListOf<File>()
-        dir.walk().forEach { file ->
-            if (file.isFile && file.name.endsWith(suffix)) {
-                if (!file.absolutePath.contains("/build/") &&
-                    !file.absolutePath.contains("/.gradle/") &&
-                    !file.absolutePath.contains("/.idea/")) {
-                    result.add(file)
+        try {
+            dir.walk().forEach { file ->
+                if (file.isFile && file.name.endsWith(suffix)) {
+                    if (!file.absolutePath.contains("/build/") &&
+                        !file.absolutePath.contains("/.gradle/") &&
+                        !file.absolutePath.contains("/.idea/")) {
+                        result.add(file)
+                    }
                 }
             }
+        } catch (_: Exception) {
         }
         return result
     }

@@ -82,8 +82,13 @@ class AgentChatViewModel @Inject constructor(
     }
 
     fun setProjectPath(path: String) {
-        prefs.edit().putString("project_path", path).apply()
-        agentEngine.setProjectPath(path)
-        _uiState.value = _uiState.value.copy(projectPath = path)
+        try {
+            prefs.edit().putString("project_path", path).apply()
+            agentEngine.setProjectPath(path)
+            _uiState.value = _uiState.value.copy(projectPath = path)
+        } catch (e: Exception) {
+            prefs.edit().putString("project_path", path).apply()
+            _uiState.value = _uiState.value.copy(projectPath = path)
+        }
     }
 }

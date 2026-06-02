@@ -53,12 +53,20 @@ class ProjectFilesViewModel @Inject constructor(
     }
 
     fun setProjectPath(path: String) {
-        prefs.edit().putString("project_path", path).apply()
-        agentEngine.setProjectPath(path)
-        _uiState.value = ProjectFilesUiState(
-            projectPath = path,
-            files = listFiles(path, emptySet())
-        )
+        try {
+            prefs.edit().putString("project_path", path).apply()
+            agentEngine.setProjectPath(path)
+            _uiState.value = ProjectFilesUiState(
+                projectPath = path,
+                files = listFiles(path, emptySet())
+            )
+        } catch (e: Exception) {
+            prefs.edit().putString("project_path", path).apply()
+            _uiState.value = ProjectFilesUiState(
+                projectPath = path,
+                files = emptyList()
+            )
+        }
     }
 
     fun toggleDirectory(path: String) {
