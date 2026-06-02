@@ -95,6 +95,7 @@ object SkillTemplateGenerator {
     }
 
     fun generateScriptTemplate(toolName: String): String {
+        val dollar = '${'$'}'
         return """#!/usr/bin/env kotlin
 /**
  * DEREK AI 技能脚本模板
@@ -107,14 +108,14 @@ object SkillTemplateGenerator {
  */
 
 fun main() {
-    val toolName = System.getenv("TOOL_NAME") ?: "$toolName"
+    val toolName = System.getenv("TOOL_NAME") ?: "${dollar}toolName"
     val argsJson = System.getenv("TOOL_ARGS") ?: "{}"
     val projectPath = System.getenv("PROJECT_PATH") ?: "."
 
     // TODO: 在此实现工具逻辑
-    println("工具 \$toolName 执行成功")
-    println("参数: \$argsJson")
-    println("项目路径: \$projectPath")
+    println("工具 ${dollar}toolName 执行成功")
+    println("参数: ${dollar}argsJson")
+    println("项目路径: ${dollar}projectPath")
 }
 
 main()
