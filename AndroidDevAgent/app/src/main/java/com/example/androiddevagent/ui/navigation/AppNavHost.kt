@@ -1,7 +1,6 @@
 package com.example.androiddevagent.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -10,6 +9,7 @@ import androidx.navigation.navArgument
 import com.example.androiddevagent.ui.screens.AgentChatScreen
 import com.example.androiddevagent.ui.screens.CodeEditorScreen
 import com.example.androiddevagent.ui.screens.ProjectFilesScreen
+import com.example.androiddevagent.ui.screens.ProjectListScreen
 import com.example.androiddevagent.ui.screens.TaskHistoryScreen
 import com.example.androiddevagent.ui.screens.SettingsScreen
 
@@ -48,6 +48,9 @@ fun AppNavHost(navController: NavHostController) {
                 filePath = filePath,
                 navController = navController
             )
+        }
+        composable(Screen.ProjectList.route) {
+            ProjectListScreen()
         }
     }
 }

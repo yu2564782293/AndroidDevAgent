@@ -20,7 +20,10 @@ object ToolDefinitions {
         gitCommitTool(),
         gitDiffTool(),
         gitRevertTool(),
-        askUserTool()
+        askUserTool(),
+        runCommandTool(),
+        installApkTool(),
+        launchAppTool()
     )
 
     private fun readFileTool() = ChatCompletionRequest.ToolDefinition(
@@ -301,6 +304,62 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("question")
+            )
+        )
+    )
+
+    private fun runCommandTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "run_command",
+            description = "Execute a shell command on the device. Use for running builds, tests, or any terminal command. The command runs in the project directory by default.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "command" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The shell command to execute"
+                    ),
+                    "working_dir" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Working directory for the command. Defaults to the project root."
+                    ),
+                    "timeout" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Timeout in milliseconds. Defaults to 120000 (2 minutes)."
+                    )
+                ),
+                required = listOf("command")
+            )
+        )
+    )
+
+    private fun installApkTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "install_apk",
+            description = "Install an APK file on the device. After a successful build, use this to install the generated APK.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "apk_path" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Absolute path to the APK file to install"
+                    )
+                ),
+                required = listOf("apk_path")
+            )
+        )
+    )
+
+    private fun launchAppTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "launch_app",
+            description = "Launch an installed application by its package name. Use after installing an APK to test it.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "package_name" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The package name of the app to launch (e.g. com.example.myapp)"
+                    )
+                ),
+                required = listOf("package_name")
             )
         )
     )

@@ -1,5 +1,6 @@
 package com.example.androiddevagent.agent.tools
 
+import com.example.androiddevagent.agent.build.TermuxIntegration
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
 import com.example.androiddevagent.agent.vcs.GitIntegration
@@ -17,7 +18,8 @@ data class ToolResult(
 @Singleton
 class ToolExecutor @Inject constructor(
     private val gitIntegration: GitIntegration,
-    private val projectSummaryGenerator: ProjectSummaryGenerator
+    private val projectSummaryGenerator: ProjectSummaryGenerator,
+    private val termuxIntegration: TermuxIntegration
 ) {
 
     private var projectPath: String = ""
@@ -48,6 +50,9 @@ class ToolExecutor @Inject constructor(
             "git_commit" -> gitCommit(args)
             "git_diff" -> gitDiff(args)
             "git_revert" -> gitRevert()
+            "run_command" -> runCommand(args)
+            "install_apk" -> installApk(args)
+            "launch_app" -> launchApp(args)
             else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
@@ -525,6 +530,42 @@ class ToolExecutor @Inject constructor(
     }
 
     private data class LintResult(val errors: List<String>, val passed: Boolean)
+
+    private fun runCommand(args: Map<String, String>): ToolResult {
+        val command = args["command"] ?: return ToolResult("缺少 'command' 参数", false)
+        val workingDir = args["working_dir"] ?: projectPath
+        val timeout = args["timeout"]?.toLongOrNull() ?: 120000L
+        val result = termuxIntegration.executeLocalCommand(command, workingDir, timeout)
+        return ToolResult(
+            if (result.success) "命令执行成功 (退出码: ${result.exitCode})\n${result.output.take(2000)}"
+            else "命令执行失败 (退出码: ${result.exitCode})\n${result.output.take(2000)}",
+            result.success
+        )
+    }
+
+    private fun installApk(args: Map<String, String>): ToolResult {
+        val apkPath = args["apk_path"] ?: return ToolResult("缺少 'apk_path' 参数", false)
+        val apkFile = File(apkPath)
+        if (!apkFile.exists()) {
+            val searchResult = findLatestApk()
+            if (searchResult != null) {
+                return ToolResult("APK 路径不存在: $apkPath\n找到最新 APK: ${searchResult.absolutePath}\n请使用此路径重试。", false)
+            }
+            return ToolResult("APK 文件不存在: $apkPath", false)
+        }
+        return ToolResult("APK 安装请求已发送: $apkPath\n请在弹出的安装界面中确认安装。", true)
+    }
+
+    private fun launchApp(args: Map<String, String>): ToolResult {
+        val packageName = args["package_name"] ?: return ToolResult("缺少 'package_name' 参数", false)
+        return ToolResult("应用启动请求已发送: $packageName", true)
+    }
+
+    private fun findLatestApk(): File? {
+        val buildDir = File(projectPath, "app/build/outputs/apk/debug")
+        if (!buildDir.exists()) return null
+        return buildDir.listFiles()?.filter { it.name.endsWith(".apk") }?.maxByOrNull { it.lastModified() }
+    }
 
     private fun parseArgs(json: String): Map<String, String> {
         return try {

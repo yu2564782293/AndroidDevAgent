@@ -1,6 +1,8 @@
 package com.example.androiddevagent.ui.screens
 
+import android.content.Intent
 import android.net.Uri
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -83,6 +85,18 @@ fun AgentChatScreen(
                 }
             } else {
                 inputText = if (inputText.isBlank()) "[文件: ${it.lastPathSegment}]" else "$inputText\n[文件: ${it.lastPathSegment}]"
+            }
+        }
+    }
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val results = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!results.isNullOrEmpty()) {
+                val spoken = results[0]
+                inputText = if (inputText.isBlank()) spoken else "$inputText $spoken"
             }
         }
     }
@@ -186,7 +200,15 @@ fun AgentChatScreen(
                 },
                 enabled = !uiState.isRunning,
                 onAttachFile = { filePicker.launch(arrayOf("*/*")) },
-                onAttachImage = { imagePicker.launch("image/*") }
+                onAttachImage = { imagePicker.launch("image/*") },
+                onVoiceInput = {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "说出您的任务指令")
+                    }
+                    speechLauncher.launch(intent)
+                }
             )
         }
     }
@@ -679,7 +701,8 @@ private fun EnhancedInputBar(
     onSend: () -> Unit,
     enabled: Boolean,
     onAttachFile: () -> Unit,
-    onAttachImage: () -> Unit
+    onAttachImage: () -> Unit,
+    onVoiceInput: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -690,6 +713,18 @@ private fun EnhancedInputBar(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
+            IconButton(
+                onClick = onVoiceInput,
+                enabled = enabled,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Mic,
+                    contentDescription = "语音输入",
+                    modifier = Modifier.size(20.dp),
+                    tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             IconButton(
                 onClick = onAttachImage,
                 enabled = enabled,

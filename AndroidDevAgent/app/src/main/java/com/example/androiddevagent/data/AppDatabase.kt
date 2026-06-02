@@ -13,13 +13,14 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Database(
-    entities = [TaskRecordEntity::class],
-    version = 1,
+    entities = [TaskRecordEntity::class, ProjectEntity::class],
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskRecordDao(): TaskRecordDao
+    abstract fun projectDao(): ProjectDao
 }
 
 @Module
@@ -35,11 +36,16 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "android_dev_agent_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
     fun provideTaskRecordDao(database: AppDatabase): TaskRecordDao {
         return database.taskRecordDao()
+    }
+
+    @Provides
+    fun provideProjectDao(database: AppDatabase): ProjectDao {
+        return database.projectDao()
     }
 }
