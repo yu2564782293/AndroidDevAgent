@@ -7,6 +7,7 @@ import com.example.androiddevagent.agent.llm.LlmConstants
 import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.agent.memory.AndroidSkills
 import com.example.androiddevagent.agent.memory.ContextCondenser
+import com.example.androiddevagent.agent.memory.MemoryManager
 import com.example.androiddevagent.agent.memory.ProjectSummaryGenerator
 import com.example.androiddevagent.agent.security.SecurityPolicy
 import com.example.androiddevagent.agent.tools.ToolDefinitions
@@ -29,7 +30,8 @@ class AgentEngine @Inject constructor(
     private val androidSkills: AndroidSkills,
     private val securityPolicy: SecurityPolicy,
     private val gitIntegration: GitIntegration,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val memoryManager: MemoryManager
 ) {
 
     private val maxAutoFixAttempts = 3
@@ -46,7 +48,7 @@ class AgentEngine @Inject constructor(
         }
     }
 
-    fun run(task: String): Flow<AgentEvent> = flow {
+    fun run(task: String, historyMessages: List<ChatCompletionRequest.Message> = emptyList()): Flow<AgentEvent> = flow {
         eventStream.clear()
 
         if (!llmProvider.isConfigured()) {
@@ -55,15 +57,29 @@ class AgentEngine @Inject constructor(
         }
 
         val skillContext = androidSkills.getRelevantSkills(task)
+        val memoryContext = kotlinx.coroutines.runBlocking {
+            memoryManager.buildMemoryContext(projectPath)
+        }
         val systemPrompt = LlmConstants.buildSystemPrompt() +
                 (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
-                (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "")
+                (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "") +
+                (if (memoryContext.isNotEmpty()) "\n\n$memoryContext" else "")
 
         val messages = mutableListOf<ChatCompletionRequest.Message>()
         messages.add(ChatCompletionRequest.Message(
             role = "system",
             content = systemPrompt
         ))
+
+        if (historyMessages.isNotEmpty()) {
+            val historySummary = buildHistorySummary(historyMessages)
+            if (historySummary.isNotEmpty()) {
+                messages.add(ChatCompletionRequest.Message(
+                    role = "system",
+                    content = "[Previous conversation context]\n$historySummary"
+                ))
+            }
+        }
 
         messages.add(ChatCompletionRequest.Message(
             role = "user",
@@ -221,6 +237,27 @@ class AgentEngine @Inject constructor(
         if (iterations >= maxIterations) {
             eventStream.emit(AgentEvent.StuckDetectedEvent("已达到最大迭代次数 ($maxIterations)"))
         }
+
+        val taskErrors = eventStream.history
+            .filterIsInstance<AgentEvent.ToolResultEvent>()
+            .filter { !it.success }
+            .map { it.output.take(200) }
+        try {
+            memoryManager.extractMemoriesFromTask(
+                task = task,
+                result = eventStream.history.lastOrNull()?.let { event ->
+                    when (event) {
+                        is AgentEvent.TaskCompleteEvent -> event.summary
+                        is AgentEvent.StuckDetectedEvent -> event.reason
+                        is AgentEvent.ErrorEvent -> event.message
+                        else -> ""
+                    }
+                } ?: "",
+                projectPath = projectPath,
+                errors = taskErrors
+            )
+        } catch (_: Exception) {
+        }
     }
 
     private fun buildSummaryString(summary: com.example.androiddevagent.agent.memory.ProjectSummary): String {
@@ -250,5 +287,31 @@ class AgentEngine @Inject constructor(
         } catch (e: Exception) {
             emptyMap()
         }
+    }
+
+    private fun buildHistorySummary(messages: List<ChatCompletionRequest.Message>): String {
+        if (messages.isEmpty()) return ""
+        val sb = StringBuilder()
+        val userMsgs = messages.filter { it.role == "user" }
+        val assistantMsgs = messages.filter { it.role == "assistant" && !it.content.isNullOrBlank() }
+        val toolCalls = messages.filter { it.role == "assistant" && it.toolCalls != null }
+            .flatMap { it.toolCalls ?: emptyList() }
+
+        if (userMsgs.isNotEmpty()) {
+            sb.append("Previous user requests: ")
+            sb.append(userMsgs.takeLast(5).joinToString("; ") { it.content?.take(150) ?: "" })
+            sb.append("\n")
+        }
+        if (assistantMsgs.isNotEmpty()) {
+            sb.append("Previous assistant responses: ")
+            sb.append(assistantMsgs.takeLast(3).joinToString("; ") { it.content?.take(150) ?: "" })
+            sb.append("\n")
+        }
+        if (toolCalls.isNotEmpty()) {
+            sb.append("Previous actions taken: ")
+            sb.append(toolCalls.takeLast(10).joinToString(", ") { "${it.function.name}(...)" })
+            sb.append("\n")
+        }
+        return sb.toString().take(2000)
     }
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.engine.AgentEngine
 import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.events.EventStream
+import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.agent.share.ShareManager
 import com.example.androiddevagent.agent.tools.ToolExecutor
@@ -79,9 +80,11 @@ class AgentChatViewModel @Inject constructor(
             githubApiService.setRepo(githubOwner, githubRepo, githubBranch)
         }
         val repoName = if (githubOwner.isNotEmpty()) "$githubOwner/$githubRepo" else ""
+        val sessionId = if (savedSessionId.isNotEmpty()) savedSessionId else UUID.randomUUID().toString()
+        prefs.edit().putString("session_id", sessionId).apply()
         return AgentChatUiState(
             projectPath = projectPath,
-            sessionId = if (savedSessionId.isNotEmpty()) savedSessionId else UUID.randomUUID().toString(),
+            sessionId = sessionId,
             githubRepo = repoName,
             githubConnected = githubApiService.isConfigured()
         )
@@ -90,9 +93,6 @@ class AgentChatViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             loadChatHistory()
-        }
-
-        viewModelScope.launch {
             eventStream.events.collect { event ->
                 _uiState.value = _uiState.value.copy(
                     events = _uiState.value.events + event
@@ -157,11 +157,12 @@ class AgentChatViewModel @Inject constructor(
     fun sendTask(task: String) {
         currentTaskDescription = task
         taskStartTime = System.currentTimeMillis()
+        val historyMsgs = buildHistoryMessages()
         currentJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRunning = true)
             var finalEvent: AgentEvent? = null
             try {
-                agentEngine.run(task).collect { event ->
+                agentEngine.run(task, historyMsgs).collect { event ->
                     finalEvent = event
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -357,5 +358,33 @@ class AgentChatViewModel @Inject constructor(
             } catch (_: Exception) {
             }
         }
+    }
+
+    private fun buildHistoryMessages(): List<ChatCompletionRequest.Message> {
+        val events = _uiState.value.events
+        if (events.isEmpty()) return emptyList()
+
+        val messages = mutableListOf<ChatCompletionRequest.Message>()
+        for (event in events) {
+            when (event) {
+                is AgentEvent.UserMessage -> {
+                    messages.add(ChatCompletionRequest.Message(role = "user", content = event.content))
+                }
+                is AgentEvent.AssistantThought -> {
+                    messages.add(ChatCompletionRequest.Message(role = "assistant", content = event.content))
+                }
+                is AgentEvent.TaskCompleteEvent -> {
+                    messages.add(ChatCompletionRequest.Message(role = "assistant", content = event.summary))
+                }
+                is AgentEvent.StuckDetectedEvent -> {
+                    messages.add(ChatCompletionRequest.Message(role = "assistant", content = "[任务未完成: ${event.reason}]"))
+                }
+                is AgentEvent.ErrorEvent -> {
+                    messages.add(ChatCompletionRequest.Message(role = "system", content = "[错误: ${event.message}]"))
+                }
+                else -> { }
+            }
+        }
+        return messages.takeLast(30)
     }
 }

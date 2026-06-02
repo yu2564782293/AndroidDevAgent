@@ -143,7 +143,7 @@ fun AgentChatScreen(
                 title = {
                     Column {
                         Text(
-                            "开发助手",
+                            "DEREK AI",
                             style = MaterialTheme.typography.titleMedium
                         )
                         if (uiState.projectPath.isNotEmpty()) {
@@ -759,13 +759,13 @@ private fun EmptyChatContent(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "安卓开发助手",
+            "DEREK AI",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "描述一个任务，助手将自主完成它",
+            "描述一个任务，DEREK 将自主完成它",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
