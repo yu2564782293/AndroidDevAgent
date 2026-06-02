@@ -36,8 +36,10 @@ class AgentEngine @Inject constructor(
 
     private val maxAutoFixAttempts = 3
     private var projectSummary = ""
+    private var projectPath = ""
 
     fun setProjectPath(path: String) {
+        projectPath = path
         toolExecutor.setProjectPath(path)
         gitIntegration.setProjectPath(path)
         projectSummary = try {
