@@ -45,7 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.androiddevagent.ui.navigation.AppNavHost
 import com.example.androiddevagent.ui.navigation.Screen
-import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
+import com.example.androiddevagent.ui.theme.DerekAITheme
 import dagger.hilt.android.AndroidEntryPoint
 
 data class BottomNavItem(
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AndroidDevAgentTheme {
+            DerekAITheme {
                 MainApp()
             }
         }

@@ -70,7 +70,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun AndroidDevAgentTheme(
+fun DerekAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
@@ -87,7 +87,7 @@ fun AndroidDevAgentTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.surface.toArgb()
+            window.statusBarColor = if (darkTheme) DarkSurface.toArgb() else colorScheme.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
