@@ -28,6 +28,10 @@ jobs:
         run: |
           sdkmanager "build-tools;34.0.0"
           sdkmanager "platforms;android-34"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 || echo "aapt2 not at ANDROID_SDK_ROOT"
+          ls -la /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 || echo "aapt2 not at default path"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -55,6 +59,7 @@ jobs:
           retention-days: 7
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
