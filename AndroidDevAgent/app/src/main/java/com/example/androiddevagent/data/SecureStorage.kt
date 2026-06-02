@@ -70,4 +70,12 @@ class SecureStorage @Inject constructor(
     fun getGitToken(provider: String): String {
         return encryptedPrefs.getString("git_token_$provider", "") ?: ""
     }
+
+    fun saveMaxIterations(max: Int) {
+        encryptedPrefs.edit().putInt("max_iterations", max).apply()
+    }
+
+    fun getMaxIterations(): Int {
+        return encryptedPrefs.getInt("max_iterations", 50)
+    }
 }

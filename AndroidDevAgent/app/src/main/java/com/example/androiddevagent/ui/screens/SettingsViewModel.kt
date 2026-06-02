@@ -34,7 +34,8 @@ data class SettingsUiState(
     val todayTokens: Long = 0,
     val todayCost: Double = 0.0,
     val tokenBudget: Int = 0,
-    val gitToken: String = ""
+    val gitToken: String = "",
+    val maxIterations: Int = 50
 )
 
 @HiltViewModel
@@ -82,6 +83,7 @@ class SettingsViewModel @Inject constructor(
         }
         val tokenBudget = secureStorage.getTokenBudget()
         val gitToken = secureStorage.getGitToken("github")
+        val maxIterations = secureStorage.getMaxIterations()
 
         val effectiveBaseUrl = baseUrl.ifBlank {
             LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == activeProvider }?.baseUrl ?: LlmConstants.DEFAULT_BASE_URL
@@ -106,7 +108,8 @@ class SettingsViewModel @Inject constructor(
             securityLevel = securityLevel,
             selectedProvider = activeProvider,
             tokenBudget = tokenBudget,
-            gitToken = gitToken
+            gitToken = gitToken,
+            maxIterations = maxIterations
         )
     }
 
@@ -170,5 +173,11 @@ class SettingsViewModel @Inject constructor(
     fun saveGitToken(token: String) {
         secureStorage.saveGitToken("github", token)
         _uiState.value = _uiState.value.copy(gitToken = token)
+    }
+
+    fun saveMaxIterations(max: Int) {
+        val clamped = max.coerceIn(5, 500)
+        secureStorage.saveMaxIterations(clamped)
+        _uiState.value = _uiState.value.copy(maxIterations = clamped)
     }
 }

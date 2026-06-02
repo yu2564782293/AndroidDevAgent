@@ -12,6 +12,7 @@ import com.example.androiddevagent.agent.security.SecurityPolicy
 import com.example.androiddevagent.agent.tools.ToolDefinitions
 import com.example.androiddevagent.agent.tools.ToolExecutor
 import com.example.androiddevagent.agent.vcs.GitIntegration
+import com.example.androiddevagent.data.SecureStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -27,10 +28,10 @@ class AgentEngine @Inject constructor(
     private val projectSummaryGenerator: ProjectSummaryGenerator,
     private val androidSkills: AndroidSkills,
     private val securityPolicy: SecurityPolicy,
-    private val gitIntegration: GitIntegration
+    private val gitIntegration: GitIntegration,
+    private val secureStorage: SecureStorage
 ) {
 
-    private val maxIterations = 20
     private val maxAutoFixAttempts = 3
     private var projectSummary = ""
 
@@ -74,6 +75,7 @@ class AgentEngine @Inject constructor(
         var iterations = 0
         val filesChanged = mutableListOf<String>()
         var consecutiveBuildFailures = 0
+        val maxIterations = secureStorage.getMaxIterations()
 
         while (iterations++ < maxIterations) {
             val condensed = condenser.condense(

@@ -1,6 +1,7 @@
 package com.example.androiddevagent.agent.engine
 
 import com.example.androiddevagent.agent.events.AgentEvent
+import com.example.androiddevagent.data.SecureStorage
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,11 +19,12 @@ enum class StuckStrategy {
 }
 
 @Singleton
-class StuckDetector @Inject constructor() {
+class StuckDetector @Inject constructor(
+    private val secureStorage: SecureStorage
+) {
 
     private val maxConsecutiveFailures = 3
     private val maxSameActionRepeats = 3
-    private val maxTotalIterations = 20
 
     fun detect(history: List<AgentEvent>, currentIteration: Int): StuckState {
         val repeatStuck = detectRepeatedActions(history)
@@ -34,10 +36,10 @@ class StuckDetector @Inject constructor() {
         val buildStuck = detectBuildFailureLoop(history)
         if (buildStuck.isStuck) return buildStuck
 
-        if (currentIteration >= maxTotalIterations) {
+        if (currentIteration >= secureStorage.getMaxIterations()) {
             return StuckState(
                 isStuck = true,
-                reason = "Reached maximum iterations ($maxTotalIterations). The task may be too complex.",
+                reason = "已达到最大迭代次数 (${secureStorage.getMaxIterations()})，任务可能过于复杂。",
                 strategy = StuckStrategy.ASK_USER
             )
         }
@@ -59,8 +61,7 @@ class StuckDetector @Inject constructor() {
         if (allSame) {
             return StuckState(
                 isStuck = true,
-                reason = "Agent is repeating the same action: ${last.first().name} with same arguments. " +
-                         "This suggests the approach is not working.",
+                reason = "Agent 重复执行相同操作: ${last.first().name}，参数相同。当前方法可能无效。",
                 strategy = StuckStrategy.SWITCH_APPROACH
             )
         }
@@ -72,8 +73,7 @@ class StuckDetector @Inject constructor() {
             if (allFailed) {
                 return StuckState(
                     isStuck = true,
-                    reason = "Agent keeps calling ${last.first().name} but it keeps failing. " +
-                             "Need to try a different approach.",
+                    reason = "Agent 持续调用 ${last.first().name} 但一直失败，需要尝试不同的方法。",
                     strategy = StuckStrategy.SWITCH_APPROACH
                 )
             }
@@ -99,8 +99,7 @@ class StuckDetector @Inject constructor() {
         if (allSameError) {
             return StuckState(
                 isStuck = true,
-                reason = "Agent keeps getting the same error and cannot fix it. " +
-                         "Error: ${outputs.first().take(100)}",
+                reason = "Agent 持续遇到相同错误且无法修复。错误: ${outputs.first().take(100)}",
                 strategy = StuckStrategy.ASK_USER
             )
         }
@@ -122,8 +121,7 @@ class StuckDetector @Inject constructor() {
             if (sameErrors) {
                 return StuckState(
                     isStuck = true,
-                    reason = "Build has failed ${lastBuilds.size} times in a row with similar errors. " +
-                             "The fixes are not resolving the underlying issue.",
+                    reason = "构建已连续失败 ${lastBuilds.size} 次且错误相似，当前修复方案未能解决根本问题。",
                     strategy = StuckStrategy.SWITCH_APPROACH
                 )
             }

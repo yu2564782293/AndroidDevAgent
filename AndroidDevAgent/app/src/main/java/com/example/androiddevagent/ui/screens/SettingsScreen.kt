@@ -34,6 +34,7 @@ fun SettingsScreen(
     var tokenBudget by remember { mutableStateOf(uiState.tokenBudget.toString()) }
     var gitToken by remember { mutableStateOf(uiState.gitToken) }
     var showGitToken by remember { mutableStateOf(false) }
+    var maxIterations by remember { mutableStateOf(uiState.maxIterations.toString()) }
 
     LaunchedEffect(uiState) {
         apiKey = uiState.apiKey
@@ -43,6 +44,7 @@ fun SettingsScreen(
         securityLevel = uiState.securityLevel
         tokenBudget = uiState.tokenBudget.toString()
         gitToken = uiState.gitToken
+        maxIterations = uiState.maxIterations.toString()
     }
 
     Scaffold(
@@ -179,6 +181,28 @@ fun SettingsScreen(
 
             Text(
                 "用于 push/pull 等远程 Git 操作（需要 repo 权限）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Divider()
+
+            Text("Agent 配置", style = MaterialTheme.typography.titleMedium)
+
+            OutlinedTextField(
+                value = maxIterations,
+                onValueChange = {
+                    maxIterations = it
+                    it.toIntOrNull()?.let { max -> viewModel.saveMaxIterations(max) }
+                },
+                label = { Text("最大迭代次数") },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("50") },
+                singleLine = true
+            )
+
+            Text(
+                "Agent 执行复杂任务时的最大循环次数（5-500，默认50）",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
