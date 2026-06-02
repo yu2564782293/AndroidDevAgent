@@ -6,8 +6,10 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -90,46 +92,58 @@ class GitHubApiService @Inject constructor(
         response.body?.string() ?: ""
     }
 
-    private suspend fun httpPut(url: String, jsonBody: String): Pair<Int, String> = withContext(Dispatchers.IO) {
-        val body = okhttp3.MediaType.parse("application/json")?.let {
-            okhttp3.RequestBody.create(it, jsonBody)
-        } ?: return@withContext Pair(-1, "Failed to create request body")
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "token ${getToken()}")
-            .header("Accept", "application/vnd.github.v3+json")
-            .put(body)
-            .build()
-        val response = client.newCall(request).execute()
-        Pair(response.code(), response.body?.string() ?: "")
+    private suspend fun httpPut(url: String, jsonBody: String): Pair<Int, String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val body = jsonBody.toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "token ${getToken()}")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .put(body)
+                    .build()
+                val response = client.newCall(request).execute()
+                Pair(response.code, response.body?.string() ?: "")
+            } catch (e: Exception) {
+                Pair(-1, e.message ?: "Unknown error")
+            }
+        }
     }
 
-    private suspend fun httpDelete(url: String, jsonBody: String): Pair<Int, String> = withContext(Dispatchers.IO) {
-        val body = okhttp3.MediaType.parse("application/json")?.let {
-            okhttp3.RequestBody.create(it, jsonBody)
-        } ?: return@withContext Pair(-1, "Failed to create request body")
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "token ${getToken()}")
-            .header("Accept", "application/vnd.github.v3+json")
-            .delete(body)
-            .build()
-        val response = client.newCall(request).execute()
-        Pair(response.code(), response.body?.string() ?: "")
+    private suspend fun httpDelete(url: String, jsonBody: String): Pair<Int, String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val body = jsonBody.toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "token ${getToken()}")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .delete(body)
+                    .build()
+                val response = client.newCall(request).execute()
+                Pair(response.code, response.body?.string() ?: "")
+            } catch (e: Exception) {
+                Pair(-1, e.message ?: "Unknown error")
+            }
+        }
     }
 
-    private suspend fun httpPost(url: String, jsonBody: String): Pair<Int, String> = withContext(Dispatchers.IO) {
-        val body = okhttp3.MediaType.parse("application/json")?.let {
-            okhttp3.RequestBody.create(it, jsonBody)
-        } ?: return@withContext Pair(-1, "Failed to create request body")
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "token ${getToken()}")
-            .header("Accept", "application/vnd.github.v3+json")
-            .post(body)
-            .build()
-        val response = client.newCall(request).execute()
-        Pair(response.code(), response.body?.string() ?: "")
+    private suspend fun httpPost(url: String, jsonBody: String): Pair<Int, String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val body = jsonBody.toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "token ${getToken()}")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .post(body)
+                    .build()
+                val response = client.newCall(request).execute()
+                Pair(response.code, response.body?.string() ?: "")
+            } catch (e: Exception) {
+                Pair(-1, e.message ?: "Unknown error")
+            }
+        }
     }
 
     suspend fun readFile(path: String, branch: String = ""): Result<GitHubFileContent> = try {
