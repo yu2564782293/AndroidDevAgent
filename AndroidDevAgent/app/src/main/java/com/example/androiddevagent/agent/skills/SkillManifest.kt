@@ -17,7 +17,7 @@ data class SkillManifest(
     val permissions: List<String> = emptyList(),
     val tools: List<SkillToolDef> = emptyList(),
     val knowledge: String = "",
-    val runtime: SkillRuntime? = null,
+    val runtime: SkillRuntimeDef? = null,
     val config: SkillConfig? = null,
     val security: SkillSecurity? = null
 )
@@ -45,7 +45,7 @@ data class SkillPropertyDef(
     val description: String = ""
 )
 
-data class SkillRuntime(
+data class SkillRuntimeDef(
     val type: String = "script",
     val entry: String = "main.kts",
     val language: String = "kotlin-script",
@@ -81,7 +81,8 @@ data class SkillSearchResult(
     val category: String,
     val tags: List<String>,
     val sourceUrl: String,
-    val installed: Boolean = false
+    val installed: Boolean = false,
+    val icon: String = "🔧"
 )
 
 object SkillManifestParser {

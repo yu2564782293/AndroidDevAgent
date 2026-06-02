@@ -370,7 +370,7 @@ private fun InstalledSkillCard(
             }
             AnimatedVisibility(visible = showActions) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(onClick = onUpdate, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {

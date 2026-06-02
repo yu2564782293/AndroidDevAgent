@@ -105,7 +105,8 @@ class SkillRegistry(
                 category = "data",
                 tags = listOf("web", "scrape", "html"),
                 sourceUrl = "https://github.com/derek-skills/web-scraper",
-                installed = false
+                installed = false,
+                icon = "🌐"
             ),
             SkillSearchResult(
                 id = "derek-skills/api-tester",
@@ -116,7 +117,8 @@ class SkillRegistry(
                 category = "dev",
                 tags = listOf("api", "rest", "http"),
                 sourceUrl = "https://github.com/derek-skills/api-tester",
-                installed = false
+                installed = false,
+                icon = "🔗"
             ),
             SkillSearchResult(
                 id = "derek-skills/code-reviewer",
@@ -127,7 +129,8 @@ class SkillRegistry(
                 category = "ai",
                 tags = listOf("code", "review", "quality"),
                 sourceUrl = "https://github.com/derek-skills/code-reviewer",
-                installed = false
+                installed = false,
+                icon = "🤖"
             ),
             SkillSearchResult(
                 id = "derek-skills/security-scanner",
@@ -138,7 +141,8 @@ class SkillRegistry(
                 category = "security",
                 tags = listOf("security", "vulnerability", "scan"),
                 sourceUrl = "https://github.com/derek-skills/security-scanner",
-                installed = false
+                installed = false,
+                icon = "🔒"
             ),
             SkillSearchResult(
                 id = "derek-skills/apk-optimizer",
@@ -149,7 +153,8 @@ class SkillRegistry(
                 category = "android",
                 tags = listOf("apk", "optimize", "proguard"),
                 sourceUrl = "https://github.com/derek-skills/apk-optimizer",
-                installed = false
+                installed = false,
+                icon = "📱"
             ),
             SkillSearchResult(
                 id = "derek-skills/db-explorer",
@@ -160,7 +165,8 @@ class SkillRegistry(
                 category = "data",
                 tags = listOf("database", "sqlite", "query"),
                 sourceUrl = "https://github.com/derek-skills/db-explorer",
-                installed = false
+                installed = false,
+                icon = "📊"
             )
         )
 
