@@ -48,7 +48,7 @@ jobs:
 
       - name: Build Debug APK
         working-directory: AndroidDevAgent
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.txt
+        run: set -o pipefail && ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.txt
 
       - name: Upload build output on failure
         if: failure()

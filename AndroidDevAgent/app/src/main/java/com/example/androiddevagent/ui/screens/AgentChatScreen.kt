@@ -1463,7 +1463,7 @@ private fun TaskCompleteBubble(summary: String, filesChanged: List<String>) {
                 }
                 if (expanded) {
                     filesChanged.forEach { file ->
-                        Row(modifier = Modifier.padding(start = 8.dp, vertical = 1.dp)) {
+                        Row(modifier = Modifier.padding(start = 8.dp, top = 1.dp, end = 0.dp, bottom = 1.dp)) {
                             Text(
                                 "• ",
                                 style = MaterialTheme.typography.labelSmall,
