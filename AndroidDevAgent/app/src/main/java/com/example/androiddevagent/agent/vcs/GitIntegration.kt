@@ -1,5 +1,6 @@
 package com.example.androiddevagent.agent.vcs
 
+import com.example.androiddevagent.data.SecureStorage
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,7 +11,9 @@ data class GitResult(
 )
 
 @Singleton
-class GitIntegration @Inject constructor() {
+class GitIntegration @Inject constructor(
+    private val secureStorage: SecureStorage
+) {
 
     private var projectPath: String = ""
 
@@ -70,20 +73,113 @@ class GitIntegration @Inject constructor() {
         return executeGit("status", "--short")
     }
 
+    fun clone(url: String, directory: String): GitResult {
+        val targetDir = File(directory)
+        if (targetDir.exists() && targetDir.listFiles()?.isNotEmpty() == true) {
+            return GitResult(false, "目标目录不为空: $directory")
+        }
+        val authUrl = authenticateUrl(url)
+        return executeGitInDir(targetDir.parentFile ?: File("/sdcard"), "clone", authUrl, directory)
+    }
+
+    fun push(remote: String = "origin", branch: String = ""): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        configureAuth()
+        return if (branch.isNotEmpty()) {
+            executeGit("push", remote, branch)
+        } else {
+            executeGit("push", remote)
+        }
+    }
+
+    fun pull(remote: String = "origin", branch: String = ""): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        configureAuth()
+        return if (branch.isNotEmpty()) {
+            executeGit("pull", remote, branch)
+        } else {
+            executeGit("pull", remote)
+        }
+    }
+
+    fun fetch(remote: String = "origin"): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        configureAuth()
+        return executeGit("fetch", remote)
+    }
+
+    fun createBranch(name: String): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        return executeGit("checkout", "-b", name)
+    }
+
+    fun switchBranch(name: String): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        return executeGit("checkout", name)
+    }
+
+    fun listBranches(): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        return executeGit("branch", "-a")
+    }
+
+    fun getCurrentBranch(): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        return executeGit("rev-parse", "--abbrev-ref", "HEAD")
+    }
+
+    fun addRemote(name: String, url: String): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        val authUrl = authenticateUrl(url)
+        val existing = executeGit("remote")
+        if (existing.output.lines().contains(name)) {
+            return executeGit("remote", "set-url", name, authUrl)
+        }
+        return executeGit("remote", "add", name, authUrl)
+    }
+
+    fun getRemotes(): GitResult {
+        if (!isGitRepo()) return GitResult(false, "不是 Git 仓库")
+        return executeGit("remote", "-v")
+    }
+
+    private fun configureAuth() {
+        val token = secureStorage.getGitToken("github")
+        if (token.isNotEmpty()) {
+            try {
+                executeGit("config", "credential.helper", "store")
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun authenticateUrl(url: String): String {
+        val token = secureStorage.getGitToken("github")
+        if (token.isEmpty()) return url
+        if (url.startsWith("https://github.com/")) {
+            return url.replace("https://github.com/", "https://$token@github.com/")
+        }
+        return url
+    }
+
     private fun executeGit(vararg args: String): GitResult {
         if (projectPath.isEmpty()) {
-            return GitResult(false, "Project path not set")
+            return GitResult(false, "未设置项目路径")
         }
 
         val projectDir = File(projectPath)
         if (!projectDir.exists()) {
-            return GitResult(false, "Project directory not found: $projectPath")
+            return GitResult(false, "项目目录不存在: $projectPath")
         }
 
+        return executeGitInDir(projectDir, *args)
+    }
+
+    private fun executeGitInDir(dir: File, vararg args: String): GitResult {
         return try {
             val process = ProcessBuilder()
                 .command(listOf("git") + args.toList())
-                .directory(projectDir)
+                .directory(dir)
                 .redirectErrorStream(true)
                 .start()
 
@@ -96,7 +192,7 @@ class GitIntegration @Inject constructor() {
                 GitResult(false, output.trim())
             }
         } catch (e: Exception) {
-            GitResult(false, "Git error: ${e.message}")
+            GitResult(false, "Git 错误: ${e.message}")
         }
     }
 }

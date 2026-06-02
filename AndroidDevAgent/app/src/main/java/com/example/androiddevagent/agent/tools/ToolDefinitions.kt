@@ -23,7 +23,11 @@ object ToolDefinitions {
         askUserTool(),
         runCommandTool(),
         installApkTool(),
-        launchAppTool()
+        launchAppTool(),
+        gitCloneTool(),
+        gitPushTool(),
+        gitPullTool(),
+        gitBranchTool()
     )
 
     private fun readFileTool() = ChatCompletionRequest.ToolDefinition(
@@ -360,6 +364,86 @@ object ToolDefinitions {
                     )
                 ),
                 required = listOf("package_name")
+            )
+        )
+    )
+
+    private fun gitCloneTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_clone",
+            description = "Clone a remote Git repository to a local directory. Use this to import an existing project from GitHub.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "url" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "The Git repository URL to clone (e.g. https://github.com/user/repo.git)"
+                    ),
+                    "directory" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Local directory path to clone into (e.g. /sdcard/MyProject)"
+                    )
+                ),
+                required = listOf("url", "directory")
+            )
+        )
+    )
+
+    private fun gitPushTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_push",
+            description = "Push local commits to a remote Git repository. Requires GitHub token to be configured in settings.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "remote" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Remote name (optional, default: origin)"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch name to push (optional, pushes current branch if not specified)"
+                    )
+                ),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun gitPullTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_pull",
+            description = "Pull latest changes from a remote Git repository. Use this to sync with the remote.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "remote" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Remote name (optional, default: origin)"
+                    ),
+                    "branch" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch name to pull (optional, pulls current branch if not specified)"
+                    )
+                ),
+                required = listOf()
+            )
+        )
+    )
+
+    private fun gitBranchTool() = ChatCompletionRequest.ToolDefinition(
+        function = ChatCompletionRequest.FunctionDef(
+            name = "git_branch",
+            description = "Manage Git branches: list, create, or switch branches.",
+            parameters = ChatCompletionRequest.Parameters(
+                properties = mapOf(
+                    "action" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Action to perform: 'list' (list all branches), 'create' (create new branch), 'switch' (switch to existing branch)"
+                    ),
+                    "name" to ChatCompletionRequest.PropertyDef(
+                        type = "string",
+                        description = "Branch name (required for create and switch actions)"
+                    )
+                ),
+                required = listOf("action")
             )
         )
     )

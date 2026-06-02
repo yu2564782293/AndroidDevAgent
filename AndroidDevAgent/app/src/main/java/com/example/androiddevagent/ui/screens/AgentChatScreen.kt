@@ -123,6 +123,11 @@ fun AgentChatScreen(
                     }
                 },
                 actions = {
+                    if (uiState.events.isNotEmpty() && !uiState.isRunning) {
+                        IconButton(onClick = { viewModel.shareReport(context) }) {
+                            Icon(Icons.Filled.Share, contentDescription = "分享报告", modifier = Modifier.size(20.dp))
+                        }
+                    }
                     if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
                         IconButton(onClick = { viewModel.triggerBuild() }) {
                             Icon(Icons.Filled.Build, contentDescription = "构建项目", modifier = Modifier.size(20.dp))
@@ -442,6 +447,13 @@ private fun ToolCallBubble(name: String, args: Map<String, String>) {
         "git_commit" -> "Git 提交"
         "git_diff" -> "Git 差异"
         "git_revert" -> "Git 回退"
+        "git_clone" -> "Git 克隆"
+        "git_push" -> "Git 推送"
+        "git_pull" -> "Git 拉取"
+        "git_branch" -> "Git 分支"
+        "run_command" -> "执行命令"
+        "install_apk" -> "安装 APK"
+        "launch_app" -> "启动应用"
         "ask_user" -> "询问用户"
         else -> name
     }

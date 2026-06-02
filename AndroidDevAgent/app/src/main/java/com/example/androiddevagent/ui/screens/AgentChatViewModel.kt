@@ -7,6 +7,7 @@ import com.example.androiddevagent.agent.engine.AgentEngine
 import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.events.EventStream
 import com.example.androiddevagent.agent.llm.LlmProvider
+import com.example.androiddevagent.agent.share.ShareManager
 import com.example.androiddevagent.agent.tools.ToolExecutor
 import com.example.androiddevagent.data.TaskRecordDao
 import com.example.androiddevagent.data.TaskRecordEntity
@@ -33,7 +34,8 @@ class AgentChatViewModel @Inject constructor(
     private val eventStream: EventStream,
     private val llmProvider: LlmProvider,
     private val toolExecutor: ToolExecutor,
-    private val taskRecordDao: TaskRecordDao
+    private val taskRecordDao: TaskRecordDao,
+    private val shareManager: ShareManager
 ) : ViewModel() {
 
     private val prefs by lazy {
@@ -119,6 +121,17 @@ class AgentChatViewModel @Inject constructor(
     fun triggerRunTests() {
         if (_uiState.value.projectPath.isEmpty()) return
         sendTask("运行项目测试")
+    }
+
+    fun shareReport(context: Context) {
+        try {
+            val reportFile = shareManager.exportTaskReport(
+                _uiState.value.events,
+                currentTaskDescription.ifBlank { "任务报告" }
+            )
+            shareManager.shareFile(context, reportFile, "text/markdown")
+        } catch (_: Exception) {
+        }
     }
 
     private fun saveTaskRecord(

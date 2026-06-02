@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.androiddevagent.ui.screens.AgentChatScreen
 import com.example.androiddevagent.ui.screens.CodeEditorScreen
+import com.example.androiddevagent.ui.screens.NewProjectScreen
 import com.example.androiddevagent.ui.screens.ProjectFilesScreen
 import com.example.androiddevagent.ui.screens.ProjectListScreen
 import com.example.androiddevagent.ui.screens.TaskHistoryScreen
@@ -50,7 +51,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable(Screen.ProjectList.route) {
-            ProjectListScreen()
+            ProjectListScreen(navController = navController)
+        }
+        composable(Screen.NewProject.route) {
+            NewProjectScreen()
         }
     }
 }

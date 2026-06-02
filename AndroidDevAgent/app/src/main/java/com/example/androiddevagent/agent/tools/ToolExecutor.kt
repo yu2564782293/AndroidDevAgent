@@ -53,6 +53,10 @@ class ToolExecutor @Inject constructor(
             "run_command" -> runCommand(args)
             "install_apk" -> installApk(args)
             "launch_app" -> launchApp(args)
+            "git_clone" -> gitClone(args)
+            "git_push" -> gitPush(args)
+            "git_pull" -> gitPull(args)
+            "git_branch" -> gitBranch(args)
             else -> ToolResult("未知工具: ${call.function.name}", false)
         }
     }
@@ -574,6 +578,75 @@ class ToolExecutor @Inject constructor(
             raw.mapValues { it.value.toString() }
         } catch (e: Exception) {
             emptyMap()
+        }
+    }
+
+    private fun gitClone(args: Map<String, String>): ToolResult {
+        val url = args["url"] ?: return ToolResult("缺少 'url' 参数", false)
+        val directory = args["directory"] ?: return ToolResult("缺少 'directory' 参数", false)
+        val result = gitIntegration.clone(url, directory)
+        return if (result.success) {
+            ToolResult("仓库克隆成功: $url → $directory\n${result.output.take(500)}", true)
+        } else {
+            ToolResult("仓库克隆失败: ${result.output}", false)
+        }
+    }
+
+    private fun gitPush(args: Map<String, String>): ToolResult {
+        val remote = args["remote"] ?: "origin"
+        val branch = args["branch"] ?: ""
+        val result = gitIntegration.push(remote, branch)
+        return if (result.success) {
+            ToolResult("推送成功: ${result.output.take(500)}", true)
+        } else {
+            ToolResult("推送失败: ${result.output}\n提示: 请在设置中配置 GitHub Token", false)
+        }
+    }
+
+    private fun gitPull(args: Map<String, String>): ToolResult {
+        val remote = args["remote"] ?: "origin"
+        val branch = args["branch"] ?: ""
+        val result = gitIntegration.pull(remote, branch)
+        return if (result.success) {
+            ToolResult("拉取成功: ${result.output.take(500)}", true)
+        } else {
+            ToolResult("拉取失败: ${result.output}", false)
+        }
+    }
+
+    private fun gitBranch(args: Map<String, String>): ToolResult {
+        val action = args["action"] ?: return ToolResult("缺少 'action' 参数", false)
+        val name = args["name"] ?: ""
+        return when (action) {
+            "list" -> {
+                val result = gitIntegration.listBranches()
+                val current = gitIntegration.getCurrentBranch()
+                val currentBranch = if (current.success) current.output else "unknown"
+                if (result.success) {
+                    ToolResult("当前分支: $currentBranch\n${result.output}", true)
+                } else {
+                    ToolResult("分支列表获取失败: ${result.output}", false)
+                }
+            }
+            "create" -> {
+                if (name.isEmpty()) return ToolResult("创建分支需要 'name' 参数", false)
+                val result = gitIntegration.createBranch(name)
+                if (result.success) {
+                    ToolResult("已创建并切换到分支: $name", true)
+                } else {
+                    ToolResult("创建分支失败: ${result.output}", false)
+                }
+            }
+            "switch" -> {
+                if (name.isEmpty()) return ToolResult("切换分支需要 'name' 参数", false)
+                val result = gitIntegration.switchBranch(name)
+                if (result.success) {
+                    ToolResult("已切换到分支: $name", true)
+                } else {
+                    ToolResult("切换分支失败: ${result.output}", false)
+                }
+            }
+            else -> ToolResult("未知分支操作: $action (支持: list, create, switch)", false)
         }
     }
 }

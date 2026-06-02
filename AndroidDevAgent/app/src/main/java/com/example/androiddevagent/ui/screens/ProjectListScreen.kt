@@ -19,7 +19,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.androiddevagent.data.ProjectEntity
+import com.example.androiddevagent.ui.navigation.Screen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -27,7 +30,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectListScreen(
-    viewModel: ProjectListViewModel = hiltViewModel()
+    viewModel: ProjectListViewModel = hiltViewModel(),
+    navController: NavHostController = rememberNavController()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -62,9 +66,18 @@ fun ProjectListScreen(
             TopAppBar(
                 title = { Text("项目管理") },
                 actions = {
-                    TextButton(onClick = { folderPicker.launch(null) }) {
+                    TextButton(onClick = { navController.navigate(Screen.NewProject.route) }) {
                         Icon(
                             Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("新建项目")
+                    }
+                    TextButton(onClick = { folderPicker.launch(null) }) {
+                        Icon(
+                            Icons.Filled.FolderOpen,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )

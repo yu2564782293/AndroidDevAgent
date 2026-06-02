@@ -2,6 +2,7 @@ package com.example.androiddevagent.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -14,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.agent.llm.LlmConstants
+import com.example.androiddevagent.agent.llm.LlmProviderConfig
 import com.example.androiddevagent.agent.security.SecurityLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,6 +31,9 @@ fun SettingsScreen(
     var projectPath by remember { mutableStateOf(uiState.projectPath) }
     var securityLevel by remember { mutableStateOf(uiState.securityLevel) }
     var savedVisible by remember { mutableStateOf(false) }
+    var tokenBudget by remember { mutableStateOf(uiState.tokenBudget.toString()) }
+    var gitToken by remember { mutableStateOf(uiState.gitToken) }
+    var showGitToken by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         apiKey = uiState.apiKey
@@ -36,6 +41,8 @@ fun SettingsScreen(
         modelName = uiState.modelName
         projectPath = uiState.projectPath
         securityLevel = uiState.securityLevel
+        tokenBudget = uiState.tokenBudget.toString()
+        gitToken = uiState.gitToken
     }
 
     Scaffold(
@@ -53,7 +60,13 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("模型配置", style = MaterialTheme.typography.titleMedium)
+            Text("模型服务商", style = MaterialTheme.typography.titleMedium)
+
+            LlmProviderSelector(
+                providers = uiState.providers,
+                selectedProvider = uiState.selectedProvider,
+                onProviderSelected = { viewModel.selectProvider(it) }
+            )
 
             OutlinedTextField(
                 value = apiKey,
@@ -93,6 +106,35 @@ fun SettingsScreen(
 
             Divider()
 
+            Text("Token 用量", style = MaterialTheme.typography.titleMedium)
+
+            TokenUsageCard(
+                totalTokens = uiState.totalTokens,
+                totalCost = uiState.totalCost,
+                todayTokens = uiState.todayTokens,
+                todayCost = uiState.todayCost
+            )
+
+            OutlinedTextField(
+                value = tokenBudget,
+                onValueChange = {
+                    tokenBudget = it
+                    it.toIntOrNull()?.let { budget -> viewModel.saveTokenBudget(budget) }
+                },
+                label = { Text("Token 预算上限") },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("0 = 无限制") },
+                singleLine = true
+            )
+
+            Text(
+                "每次任务消耗的 Token 达到上限时将自动停止",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Divider()
+
             Text("项目", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
@@ -106,6 +148,37 @@ fun SettingsScreen(
 
             Text(
                 "输入设备上 Android 项目目录的绝对路径",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Divider()
+
+            Text("Git 配置", style = MaterialTheme.typography.titleMedium)
+
+            OutlinedTextField(
+                value = gitToken,
+                onValueChange = {
+                    gitToken = it
+                    viewModel.saveGitToken(it)
+                },
+                label = { Text("GitHub Token") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (showGitToken) androidx.compose.ui.text.input.VisualTransformation.None
+                else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showGitToken = !showGitToken }) {
+                        Icon(
+                            if (showGitToken) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showGitToken) "隐藏" else "显示"
+                        )
+                    }
+                },
+                singleLine = true
+            )
+
+            Text(
+                "用于 push/pull 等远程 Git 操作（需要 repo 权限）",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -152,6 +225,59 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun LlmProviderSelector(
+    providers: List<LlmProviderConfig>,
+    selectedProvider: String,
+    onProviderSelected: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        providers.forEach { provider ->
+            FilterChip(
+                selected = provider.id == selectedProvider,
+                onClick = { onProviderSelected(provider.id) },
+                label = { Text(provider.name, style = MaterialTheme.typography.labelSmall) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TokenUsageCard(
+    totalTokens: Long,
+    totalCost: Double,
+    todayTokens: Long,
+    todayCost: Double
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("今日", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${todayTokens / 1000}K", style = MaterialTheme.typography.titleMedium)
+                Text("¥${String.format("%.3f", todayCost * 7.2)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("累计", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${totalTokens / 1000}K", style = MaterialTheme.typography.titleMedium)
+                Text("¥${String.format("%.3f", totalCost * 7.2)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
