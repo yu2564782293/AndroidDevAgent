@@ -28,15 +28,6 @@ jobs:
         run: |
           sdkmanager "build-tools;34.0.0"
           sdkmanager "platforms;android-34"
-          ls -la $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 || echo "aapt2 not found at ANDROID_SDK_ROOT"
-          ls -la /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 || echo "aapt2 not found at default path"
-
-      - name: Create symlink for aapt2
-        run: |
-          sudo mkdir -p /opt/android-sdk/build-tools/34.0.0/
-          sudo ln -s $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 /opt/android-sdk/build-tools/34.0.0/aapt2 || true
-          sudo ln -s /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 /opt/android-sdk/build-tools/34.0.0/aapt2 || true
-          ls -la /opt/android-sdk/build-tools/34.0.0/aapt2
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -53,7 +44,15 @@ jobs:
 
       - name: Build Debug APK
         working-directory: AndroidDevAgent
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.txt
+
+      - name: Upload build output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: AndroidDevAgent/build_output.txt
+          retention-days: 7
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
