@@ -105,15 +105,19 @@ class GitHubApiService @Inject constructor(
         return "https://api.github.com$path"
     }
 
-    private suspend fun httpGet(url: String): String {
+    private suspend fun httpGet(url: String): Pair<Int, String> {
         return withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(url)
-                .header("Authorization", "token ${getToken()}")
-                .header("Accept", "application/vnd.github.v3+json")
-                .build()
-            val response = client.newCall(request).execute()
-            response.body?.string() ?: ""
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "token ${getToken()}")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .build()
+                val response = client.newCall(request).execute()
+                Pair(response.code, response.body?.string() ?: "")
+            } catch (e: Exception) {
+                Pair(-1, e.message ?: "Unknown error")
+            }
         }
     }
 
@@ -171,15 +175,49 @@ class GitHubApiService @Inject constructor(
         }
     }
 
+    private fun parseErrorMessage(json: String): String {
+        return try {
+            gson.fromJson(json, GitHubErrorResponse::class.java).message
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private fun httpError(code: Int, json: String): Exception {
+        val msg = parseErrorMessage(json)
+        val statusText = when (code) {
+            401 -> "未授权 (Token 无效或已过期)"
+            403 -> "访问被拒绝 (权限不足或 API 限流)"
+            404 -> "资源不存在"
+            422 -> "请求参数无效"
+            else -> "HTTP $code"
+        }
+        return Exception("$statusText${if (msg.isNotEmpty()) ": $msg" else ""}")
+    }
+
     suspend fun readFile(path: String, branch: String = ""): Result<GitHubFileContent> {
         return try {
             val repo = currentRepo ?: return Result.failure(Exception("未连接仓库"))
             val b = branch.ifEmpty { repo.branch }
             val url = apiUrl("/repos/${repo.owner}/${repo.repo}/contents/$path?ref=$b")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
+            val trimmed = json.trim()
+            if (trimmed.startsWith("[")) {
+                return Result.failure(Exception("'$path' 是目录，不是文件。请使用 github_list_dir 浏览目录"))
+            }
+
             val response = gson.fromJson(json, GitHubContentResponse::class.java)
             if (response.content == null) {
-                return Result.failure(Exception("文件不存在或为目录: $path"))
+                if (response.type == "dir") {
+                    return Result.failure(Exception("'$path' 是目录，不是文件。请使用 github_list_dir 浏览目录"))
+                }
+                val errorMsg = parseErrorMessage(json)
+                return Result.failure(Exception("文件不存在或无法读取: $path${if (errorMsg.isNotEmpty()) " ($errorMsg)" else ""}"))
             }
             val decoded = decodeBase64(response.content)
             Result.success(GitHubFileContent(
@@ -199,16 +237,45 @@ class GitHubApiService @Inject constructor(
             val b = branch.ifEmpty { repo.branch }
             val pathPart = if (path.isEmpty()) "" else "/$path"
             val url = apiUrl("/repos/${repo.owner}/${repo.repo}/contents$pathPart?ref=$b")
-            val json = httpGet(url)
-            val items = gson.fromJson(json, Array<GitHubContentResponse>::class.java)
-            Result.success(items.map { item ->
-                GitHubDirEntry(
-                    name = item.name,
-                    path = item.path,
-                    type = item.type,
-                    size = item.size ?: 0
-                )
-            })
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
+            val trimmed = json.trim()
+            if (trimmed.isEmpty()) {
+                return Result.success(emptyList())
+            }
+
+            if (trimmed.startsWith("[")) {
+                val items = gson.fromJson(json, Array<GitHubContentResponse>::class.java)
+                Result.success(items.map { item ->
+                    GitHubDirEntry(
+                        name = item.name,
+                        path = item.path,
+                        type = item.type,
+                        size = item.size ?: 0
+                    )
+                })
+            } else {
+                val singleItem = gson.fromJson(json, GitHubContentResponse::class.java)
+                if (singleItem.type == "dir" || singleItem.type == "file") {
+                    Result.success(listOf(GitHubDirEntry(
+                        name = singleItem.name,
+                        path = singleItem.path,
+                        type = singleItem.type,
+                        size = singleItem.size ?: 0
+                    )))
+                } else {
+                    val errorMsg = parseErrorMessage(json)
+                    if (errorMsg.isNotEmpty()) {
+                        Result.failure(Exception("GitHub API 错误: $errorMsg"))
+                    } else {
+                        Result.success(emptyList())
+                    }
+                }
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -252,12 +319,8 @@ class GitHubApiService @Inject constructor(
                     htmlUrl = commitResponse.commit?.htmlUrl ?: ""
                 ))
             } else {
-                val errorMsg = try {
-                    gson.fromJson(responseJson, GitHubErrorResponse::class.java).message
-                } catch (_: Exception) {
-                    responseJson.take(200)
-                }
-                Result.failure(Exception("写入失败 ($code): $errorMsg"))
+                val errorMsg = parseErrorMessage(responseJson)
+                Result.failure(Exception("写入失败: ${httpError(code, "").message}${if (errorMsg.isNotEmpty()) " - $errorMsg" else ""}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -290,7 +353,7 @@ class GitHubApiService @Inject constructor(
                     htmlUrl = commitResponse.htmlUrl ?: ""
                 ))
             } else {
-                Result.failure(Exception("删除失败 ($code)"))
+                Result.failure(httpError(code, responseJson))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -301,7 +364,18 @@ class GitHubApiService @Inject constructor(
         return try {
             val repo = currentRepo ?: return Result.failure(Exception("未连接仓库"))
             val url = apiUrl("/repos/${repo.owner}/${repo.repo}/branches")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
+            val trimmed = json.trim()
+            if (!trimmed.startsWith("[")) {
+                val errorMsg = parseErrorMessage(json)
+                return Result.failure(Exception("获取分支列表失败${if (errorMsg.isNotEmpty()) ": $errorMsg" else ""}"))
+            }
+
             val branches = gson.fromJson(json, Array<GitHubBranchResponse>::class.java)
             Result.success(branches.map {
                 GitHubBranchInfo(
@@ -320,7 +394,11 @@ class GitHubApiService @Inject constructor(
             val sourceBranch = fromBranch.ifEmpty { repo.branch }
 
             val refUrl = apiUrl("/repos/${repo.owner}/${repo.repo}/git/ref/heads/$sourceBranch")
-            val refJson = httpGet(refUrl)
+            val (refCode, refJson) = httpGet(refUrl)
+            if (refCode !in 200..299) {
+                return Result.failure(httpError(refCode, refJson))
+            }
+
             val refResponse = gson.fromJson(refJson, GitHubRefResponse::class.java)
             val sha = refResponse.objectData?.sha
                 ?: return Result.failure(Exception("无法获取 $sourceBranch 的 SHA"))
@@ -335,7 +413,7 @@ class GitHubApiService @Inject constructor(
                 currentRepo = repo.copy(branch = branchName)
                 Result.success("分支 $branchName 创建成功，基于 $sourceBranch")
             } else {
-                Result.failure(Exception("创建分支失败 ($code)"))
+                Result.failure(Exception("创建分支失败 (HTTP $code)"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -346,7 +424,12 @@ class GitHubApiService @Inject constructor(
         return try {
             val repo = currentRepo ?: return Result.failure(Exception("未连接仓库"))
             val url = apiUrl("/repos/${repo.owner}/${repo.repo}")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
             val info = gson.fromJson(json, GitHubRepoResponse::class.java)
             Result.success(buildString {
                 append("仓库: ${info.fullName}\n")
@@ -366,7 +449,18 @@ class GitHubApiService @Inject constructor(
         return try {
             val repo = currentRepo ?: return Result.failure(Exception("未连接仓库"))
             val url = apiUrl("/repos/${repo.owner}/${repo.repo}/commits?per_page=$count&sha=${repo.branch}")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
+            val trimmed = json.trim()
+            if (!trimmed.startsWith("[")) {
+                val errorMsg = parseErrorMessage(json)
+                return Result.failure(Exception("获取提交记录失败${if (errorMsg.isNotEmpty()) ": $errorMsg" else ""}"))
+            }
+
             val commits = gson.fromJson(json, Array<GitHubCommitItem>::class.java)
             Result.success(commits.mapIndexed { idx, c ->
                 val shortSha = c.sha?.take(7) ?: "?"
@@ -408,7 +502,8 @@ class GitHubApiService @Inject constructor(
                     baseBranch = base
                 ))
             } else {
-                Result.failure(Exception("创建 PR 失败 ($code)"))
+                val errorMsg = parseErrorMessage(responseJson)
+                Result.failure(Exception("创建 PR 失败${if (errorMsg.isNotEmpty()) ": $errorMsg" else " (HTTP $code)"}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -420,7 +515,12 @@ class GitHubApiService @Inject constructor(
             val repo = currentRepo ?: return Result.failure(Exception("未连接仓库"))
             val encodedQuery = URLEncoder.encode("$query repo:${repo.owner}/${repo.repo}", "UTF-8")
             val url = apiUrl("/search/code?q=$encodedQuery&per_page=20")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
             val response = gson.fromJson(json, GitHubSearchResponse::class.java)
             if (response.items.isNullOrEmpty()) {
                 Result.success("未找到匹配的代码")
@@ -437,7 +537,12 @@ class GitHubApiService @Inject constructor(
     suspend fun getCurrentUser(): Result<GitHubUserInfo> {
         return try {
             val url = apiUrl("/user")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
             val user = gson.fromJson(json, GitHubUserResponse::class.java)
             Result.success(GitHubUserInfo(
                 login = user.login,
@@ -452,7 +557,18 @@ class GitHubApiService @Inject constructor(
     suspend fun listUserRepos(page: Int = 1, perPage: Int = 30): Result<List<GitHubUserRepo>> {
         return try {
             val url = apiUrl("/user/repos?page=$page&per_page=$perPage&sort=updated&direction=desc")
-            val json = httpGet(url)
+            val (code, json) = httpGet(url)
+
+            if (code !in 200..299) {
+                return Result.failure(httpError(code, json))
+            }
+
+            val trimmed = json.trim()
+            if (!trimmed.startsWith("[")) {
+                val errorMsg = parseErrorMessage(json)
+                return Result.failure(Exception("获取仓库列表失败${if (errorMsg.isNotEmpty()) ": $errorMsg" else ""}"))
+            }
+
             val repos = gson.fromJson(json, Array<GitHubUserRepoResponse>::class.java)
             Result.success(repos.map { repo ->
                 GitHubUserRepo(
