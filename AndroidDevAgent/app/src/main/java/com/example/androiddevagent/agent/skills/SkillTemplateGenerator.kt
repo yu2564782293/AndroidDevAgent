@@ -95,7 +95,7 @@ object SkillTemplateGenerator {
     }
 
     fun generateScriptTemplate(toolName: String): String {
-        val dollar = '${'$'}'
+        val dollar = "\$"
         return """#!/usr/bin/env kotlin
 /**
  * DEREK AI 技能脚本模板
