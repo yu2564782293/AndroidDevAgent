@@ -106,6 +106,21 @@ class AgentChatViewModel @Inject constructor(
         }
     }
 
+    fun triggerBuild(task: String = "assembleDebug") {
+        if (_uiState.value.projectPath.isEmpty()) return
+        sendTask("执行 Gradle 构建: $task")
+    }
+
+    fun triggerInstallApk() {
+        if (_uiState.value.projectPath.isEmpty()) return
+        sendTask("安装最新的 debug APK")
+    }
+
+    fun triggerRunTests() {
+        if (_uiState.value.projectPath.isEmpty()) return
+        sendTask("运行项目测试")
+    }
+
     private fun saveTaskRecord(
         task: String,
         finalEvent: AgentEvent?,

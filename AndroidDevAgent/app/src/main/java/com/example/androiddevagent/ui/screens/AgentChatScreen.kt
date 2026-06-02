@@ -1,6 +1,8 @@
 package com.example.androiddevagent.ui.screens
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.agent.events.AgentEvent
 
@@ -120,6 +123,11 @@ fun AgentChatScreen(
                     }
                 },
                 actions = {
+                    if (uiState.projectPath.isNotEmpty() && !uiState.isRunning) {
+                        IconButton(onClick = { viewModel.triggerBuild() }) {
+                            Icon(Icons.Filled.Build, contentDescription = "构建项目", modifier = Modifier.size(20.dp))
+                        }
+                    }
                     if (uiState.isRunning) {
                         FilledTonalButton(
                             onClick = { viewModel.stopAgent() },
@@ -155,7 +163,10 @@ fun AgentChatScreen(
                         onProjectClick = { folderPicker.launch(null) },
                         onSuggestionClick = { suggestion ->
                             inputText = suggestion
-                        }
+                        },
+                        onBuildClick = { viewModel.triggerBuild() },
+                        onInstallApkClick = { viewModel.triggerInstallApk() },
+                        onRunTestsClick = { viewModel.triggerRunTests() }
                     )
                 }
             } else {
@@ -202,12 +213,23 @@ fun AgentChatScreen(
                 onAttachFile = { filePicker.launch(arrayOf("*/*")) },
                 onAttachImage = { imagePicker.launch("image/*") },
                 onVoiceInput = {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "说出您的任务指令")
+                    val hasPermission = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!hasPermission) {
+                        inputText = if (inputText.isBlank()) "请先授予麦克风权限，然后在设置中开启语音输入" else inputText
+                    } else {
+                        val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, "说出您的任务指令")
+                        }
+                        if (speechIntent.resolveActivity(context.packageManager) != null) {
+                            speechLauncher.launch(speechIntent)
+                        } else {
+                            inputText = if (inputText.isBlank()) "您的设备不支持语音输入，请安装语音识别应用" else inputText
+                        }
                     }
-                    speechLauncher.launch(intent)
                 }
             )
         }
@@ -256,7 +278,10 @@ private fun getFilePathFromUri(context: android.content.Context, uri: Uri): Stri
 private fun EmptyChatContent(
     projectPath: String,
     onProjectClick: () -> Unit,
-    onSuggestionClick: (String) -> Unit
+    onSuggestionClick: (String) -> Unit,
+    onBuildClick: () -> Unit,
+    onInstallApkClick: () -> Unit,
+    onRunTestsClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -293,6 +318,36 @@ private fun EmptyChatContent(
                 label = { Text(projectPath.substringAfterLast("/")) },
                 leadingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp)) }
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                FilledTonalButton(
+                    onClick = onBuildClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("构建", style = MaterialTheme.typography.labelMedium)
+                }
+                FilledTonalButton(
+                    onClick = onInstallApkClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("安装", style = MaterialTheme.typography.labelMedium)
+                }
+                FilledTonalButton(
+                    onClick = onRunTestsClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("测试", style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
         Spacer(modifier = Modifier.height(32.dp))
         Text("试试说：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
