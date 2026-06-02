@@ -90,12 +90,13 @@ class SkillManager(
     }
 
     suspend fun searchSkills(query: String): List<SkillSearchResult> {
-        val githubResults = skillRegistry.searchGitHub(query)
+        // 全平台并行搜索：GitHub + GitCode + GitLab + 市场
+        val allResults = skillRegistry.searchAllPlatforms(query)
         val marketResults = skillRegistry.searchMarketplace(query)
-        val allResults = (githubResults + marketResults).distinctBy { it.id }
+        val merged = (allResults + marketResults).distinctBy { it.sourceUrl }
 
         val installedIds = skillDao.getAll().map { it.id }.toSet()
-        return allResults.map { it.copy(installed = it.id in installedIds) }
+        return merged.map { it.copy(installed = it.id in installedIds) }
     }
 
     suspend fun getRecommendedSkills(): List<SkillSearchResult> {
