@@ -184,6 +184,7 @@ fun SidebarNavigation(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SidebarNavigationItem(
     item: SidebarNavItem,

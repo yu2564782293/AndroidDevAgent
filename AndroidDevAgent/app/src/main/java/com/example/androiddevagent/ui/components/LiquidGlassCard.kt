@@ -64,7 +64,7 @@ fun LiquidGlassCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(shape)
+                    .clip(cardShape)
             )
         }
         Column(
