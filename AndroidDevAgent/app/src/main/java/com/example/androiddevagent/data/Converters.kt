@@ -18,4 +18,19 @@ class Converters {
         val type = object : TypeToken<List<String>>() {}.type
         return gson.fromJson(value, type)
     }
+
+    @TypeConverter
+    fun fromFloatArray(value: FloatArray): String {
+        return value.joinToString(",") { it.toString() }
+    }
+
+    @TypeConverter
+    fun toFloatArray(value: String): FloatArray {
+        if (value.isBlank()) return FloatArray(0)
+        return try {
+            value.split(",").map { it.trim().toFloat() }.toFloatArray()
+        } catch (_: Exception) {
+            FloatArray(0)
+        }
+    }
 }

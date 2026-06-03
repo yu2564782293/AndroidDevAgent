@@ -62,11 +62,13 @@ class AgentEngine @Inject constructor(
 
         val skillContext = androidSkills.getRelevantSkills(task)
         val memoryContext = memoryManager.buildMemoryContext(projectPath)
+        val smartMemoryContext = memoryManager.buildSmartMemoryContext(task)
         val skillKnowledge = skillManager.getAllSkillKnowledge()
         val systemPrompt = LlmConstants.buildSystemPrompt() +
                 (if (skillContext.isNotEmpty()) "\n\n## Relevant Android Knowledge\n$skillContext" else "") +
                 (if (projectSummary.isNotEmpty()) "\n\n## Project Summary\n$projectSummary" else "") +
                 (if (memoryContext.isNotEmpty()) "\n\n$memoryContext" else "") +
+                (if (smartMemoryContext.isNotEmpty()) "\n\n$smartMemoryContext" else "") +
                 (if (skillKnowledge.isNotEmpty()) "\n\n$skillKnowledge" else "")
 
         val messages = mutableListOf<ChatCompletionRequest.Message>()

@@ -85,6 +85,9 @@ dependencies {
     ksp 'androidx.room:room-compiler:2.6.1'
 
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // ONNX Runtime - 用于 Silero VAD 语音活动检测
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.0'
     
     // 测试
     testImplementation 'junit:junit:4.13.2'

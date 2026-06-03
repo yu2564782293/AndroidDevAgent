@@ -1,5 +1,6 @@
 package com.example.androiddevagent.ui.navigation
 
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -8,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.androiddevagent.ui.screens.AgentChatScreen
 import com.example.androiddevagent.ui.screens.CodeEditorScreen
+import com.example.androiddevagent.ui.screens.MemoryScreen
 import com.example.androiddevagent.ui.screens.NewProjectScreen
 import com.example.androiddevagent.ui.screens.ProjectFilesScreen
 import com.example.androiddevagent.ui.screens.ProjectListScreen
@@ -16,13 +18,13 @@ import com.example.androiddevagent.ui.screens.SkillScreen
 import com.example.androiddevagent.ui.screens.TaskHistoryScreen
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(navController: NavHostController, drawerState: DrawerState? = null) {
     NavHost(
         navController = navController,
         startDestination = Screen.AgentChat.route
     ) {
         composable(Screen.AgentChat.route) {
-            AgentChatScreen()
+            AgentChatScreen(drawerState = drawerState)
         }
         composable(Screen.ProjectFiles.route) {
             ProjectFilesScreen(
@@ -59,6 +61,9 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(Screen.NewProject.route) {
             NewProjectScreen()
+        }
+        composable(Screen.Memory.route) {
+            MemoryScreen()
         }
     }
 }

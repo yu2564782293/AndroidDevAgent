@@ -9,7 +9,9 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -69,6 +71,12 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = OutlineVariant
 )
 
+// 液态玻璃主题状态
+val LocalGlassDarkTheme = compositionLocalOf { false }
+
+@Composable
+fun isDarkGlassTheme(): Boolean = LocalGlassDarkTheme.current
+
 @Composable
 fun DerekAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -92,9 +100,11 @@ fun DerekAITheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalGlassDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

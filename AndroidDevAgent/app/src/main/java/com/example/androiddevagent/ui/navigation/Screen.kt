@@ -9,4 +9,5 @@ sealed class Screen(val route: String) {
     object CodeEditor : Screen("code_editor/{path}")
     object ProjectList : Screen("project_list")
     object NewProject : Screen("new_project")
+    object Memory : Screen("memory")
 }

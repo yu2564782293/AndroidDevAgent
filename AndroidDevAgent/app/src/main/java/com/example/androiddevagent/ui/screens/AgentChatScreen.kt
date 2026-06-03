@@ -44,13 +44,15 @@ import com.example.androiddevagent.agent.vcs.GitHubUserRepo
 import com.example.androiddevagent.agent.vcs.GitHubUserInfo
 import com.example.androiddevagent.ui.theme.DerekGradientEnd
 import com.example.androiddevagent.ui.theme.DerekGradientStart
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentChatScreen(
-    viewModel: AgentChatViewModel = hiltViewModel()
+    viewModel: AgentChatViewModel = hiltViewModel(),
+    drawerState: DrawerState? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -58,6 +60,7 @@ fun AgentChatScreen(
     var showCloneDialog by remember { mutableStateOf(false) }
     var showGitHubDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -157,6 +160,17 @@ fun AgentChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    if (drawerState != null) {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(
+                                Icons.Filled.Menu,
+                                contentDescription = "导航菜单",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(

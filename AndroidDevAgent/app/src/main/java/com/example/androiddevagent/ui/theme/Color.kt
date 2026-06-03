@@ -67,3 +67,19 @@ val DarkOutlineVariant = Color(0xFF444750)
 val DerekGradientStart = Color(0xFF0D47A1)
 val DerekGradientEnd = Color(0xFF00BFA5)
 val DerekAccent = Color(0xFF7C4DFF)
+
+// 液态玻璃效果颜色 - 亮色主题
+val GlassTintLight = Color(0xCCFFFFFF)       // 80% 白色
+val GlassBorderLight = Color(0x40FFFFFF)      // 25% 白色
+val GlassSurfaceLight = Color(0xE6F5F7FA)     // 90% 浅灰背景
+
+// 液态玻璃效果颜色 - 暗色主题
+val GlassTintDark = Color(0x991A2744)         // 60% 深蓝
+val GlassBorderDark = Color(0x33FFFFFF)       // 20% 白色
+val GlassSurfaceDark = Color(0xE60A1628)       // 90% 深蓝背景
+
+// 额外强调色
+val AccentCyan = Color(0xFF00E5FF)
+val AccentPurple = Color(0xFFB388FF)
+val AccentAmber = Color(0xFFFFD54F)
+val AccentPink = Color(0xFFFF80AB)
