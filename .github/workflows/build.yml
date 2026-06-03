@@ -23,8 +23,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: 'build-tools;34.0.0 platforms;android-34'
+
+      - name: Install SDK packages
+        run: yes | sdkmanager --install "build-tools;34.0.0" "platforms;android-34"
 
       - name: Create local.properties
         run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > AndroidDevAgent/local.properties
