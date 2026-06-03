@@ -23,9 +23,30 @@ class LlmProvider @Inject constructor() {
 
     fun configure(apiKey: String, baseUrl: String, modelName: String) {
         this.apiKey = apiKey
-        this.baseUrl = baseUrl
+        this.baseUrl = sanitizeBaseUrl(baseUrl)
         this.modelName = modelName
-        this.api = buildApi()
+        try {
+            this.api = buildApi()
+        } catch (e: Exception) {
+            // 配置失败不回滚已保存的 key/model，避免丢失用户输入
+            android.util.Log.e("LlmProvider", "buildApi 失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 确保 baseUrl 以 / 结尾，否则 Retrofit.Builder().baseUrl() 会抛出 IllegalArgumentException。
+     * 同时滤除明显的非法字符。
+     */
+    private fun sanitizeBaseUrl(url: String): String {
+        if (url.isBlank()) return url
+        var sanitized = url.trim()
+        if (!sanitized.startsWith("http://") && !sanitized.startsWith("https://")) {
+            sanitized = "https://$sanitized"
+        }
+        if (!sanitized.endsWith("/")) {
+            sanitized = "$sanitized/"
+        }
+        return sanitized
     }
 
     fun isConfigured(): Boolean = apiKey.isNotEmpty()

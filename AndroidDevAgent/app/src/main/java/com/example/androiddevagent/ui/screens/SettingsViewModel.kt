@@ -35,7 +35,8 @@ data class SettingsUiState(
     val todayCost: Double = 0.0,
     val tokenBudget: Int = 0,
     val gitToken: String = "",
-    val maxIterations: Int = 50
+    val maxIterations: Int = 50,
+    val saveError: String = ""
 )
 
 @HiltViewModel
@@ -53,7 +54,13 @@ class SettingsViewModel @Inject constructor(
         context.getSharedPreferences("agent_settings", Context.MODE_PRIVATE)
     }
 
-    private val _uiState = MutableStateFlow(loadSettings())
+    private val _uiState = MutableStateFlow(
+        try {
+            loadSettings()
+        } catch (e: Exception) {
+            SettingsUiState(saveError = "加载设置失败: ${e.message}")
+        }
+    )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
@@ -93,10 +100,18 @@ class SettingsViewModel @Inject constructor(
         }
 
         if (apiKey.isNotEmpty()) {
-            llmProvider.configure(apiKey, effectiveBaseUrl, effectiveModel)
+            try {
+                llmProvider.configure(apiKey, effectiveBaseUrl, effectiveModel)
+            } catch (e: Exception) {
+                // 配置失败不影响页面加载，用户可手动修正后重新保存
+            }
         }
         if (projectPath.isNotEmpty()) {
-            agentEngine.setProjectPath(projectPath)
+            try {
+                agentEngine.setProjectPath(projectPath)
+            } catch (e: Exception) {
+                // 项目路径无效不影响加载
+            }
         }
         securityPolicy.level = securityLevel
 
@@ -114,39 +129,47 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun saveSettings(apiKey: String, baseUrl: String, modelName: String, projectPath: String, securityLevel: SecurityLevel) {
-        val provider = _uiState.value.selectedProvider
-        secureStorage.saveApiKey(provider, apiKey)
-        secureStorage.saveProviderConfig(provider, baseUrl, modelName)
-        secureStorage.saveActiveProvider(provider)
+        try {
+            val provider = _uiState.value.selectedProvider
+            secureStorage.saveApiKey(provider, apiKey)
+            secureStorage.saveProviderConfig(provider, baseUrl, modelName)
+            secureStorage.saveActiveProvider(provider)
 
-        prefs.edit()
-            .putString("project_path", projectPath)
-            .putString("security_level", securityLevel.name)
-            .apply()
+            prefs.edit()
+                .putString("project_path", projectPath)
+                .putString("security_level", securityLevel.name)
+                .apply()
 
-        val effectiveBaseUrl = baseUrl.ifBlank {
-            LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == provider }?.baseUrl ?: LlmConstants.DEFAULT_BASE_URL
-        }
-        val effectiveModel = modelName.ifBlank {
-            LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == provider }?.defaultModel ?: LlmConstants.DEFAULT_MODEL
-        }
+            val effectiveBaseUrl = baseUrl.ifBlank {
+                LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == provider }?.baseUrl ?: LlmConstants.DEFAULT_BASE_URL
+            }
+            val effectiveModel = modelName.ifBlank {
+                LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == provider }?.defaultModel ?: LlmConstants.DEFAULT_MODEL
+            }
 
-        if (apiKey.isNotEmpty()) {
-            llmProvider.configure(apiKey, effectiveBaseUrl, effectiveModel)
-        }
-        if (projectPath.isNotEmpty()) {
-            agentEngine.setProjectPath(projectPath)
-        }
-        securityPolicy.level = securityLevel
+            if (apiKey.isNotEmpty()) {
+                llmProvider.configure(apiKey, effectiveBaseUrl, effectiveModel)
+            }
+            if (projectPath.isNotEmpty()) {
+                agentEngine.setProjectPath(projectPath)
+            }
+            securityPolicy.level = securityLevel
 
-        _uiState.value = _uiState.value.copy(
-            apiKey = apiKey,
-            baseUrl = effectiveBaseUrl,
-            modelName = effectiveModel,
-            projectPath = projectPath,
-            securityLevel = securityLevel,
-            saved = true
-        )
+            _uiState.value = _uiState.value.copy(
+                apiKey = apiKey,
+                baseUrl = effectiveBaseUrl,
+                modelName = effectiveModel,
+                projectPath = projectPath,
+                securityLevel = securityLevel,
+                saved = true,
+                saveError = ""
+            )
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                saved = false,
+                saveError = "保存失败: ${e.message}"
+            )
+        }
     }
 
     fun selectProvider(providerId: String) {

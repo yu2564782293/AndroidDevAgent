@@ -36,7 +36,7 @@ fun SettingsScreen(
     var showGitToken by remember { mutableStateOf(false) }
     var maxIterations by remember { mutableStateOf(uiState.maxIterations.toString()) }
 
-    LaunchedEffect(uiState) {
+    LaunchedEffect(uiState.selectedProvider, uiState.saved) {
         apiKey = uiState.apiKey
         baseUrl = uiState.baseUrl
         modelName = uiState.modelName
@@ -244,6 +244,21 @@ fun SettingsScreen(
                         "设置已保存！",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            if (uiState.saveError.isNotEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        uiState.saveError,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
