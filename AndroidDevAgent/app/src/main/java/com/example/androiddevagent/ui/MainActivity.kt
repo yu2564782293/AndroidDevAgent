@@ -36,7 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.androiddevagent.ui.screens.CodeGenerationScreen
 import com.example.androiddevagent.ui.screens.HomeScreen
 import com.example.androiddevagent.ui.screens.SimpleFeatureScreen
-import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
+import com.example.androiddevagent.ui.theme.DerekAITheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AndroidDevAgentTheme {
+            DerekAITheme {
                 AndroidDevAgentApp()
             }
         }
@@ -172,7 +172,7 @@ enum class AppDestination(
 @Preview(showBackground = true)
 @Composable
 fun MainActivityPreview() {
-    AndroidDevAgentTheme {
+    DerekAITheme {
         AndroidDevAgentApp()
     }
 }
