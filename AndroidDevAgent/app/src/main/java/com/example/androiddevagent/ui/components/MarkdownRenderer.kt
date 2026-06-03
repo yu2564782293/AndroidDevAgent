@@ -387,7 +387,7 @@ private fun TableBlockView(block: MarkdownBlock.TableBlock, baseColor: Color) {
 
 @Composable
 private fun HorizontalRuleView() {
-    HorizontalDivider(
+    Divider(
         modifier = Modifier.padding(vertical = 4.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     )

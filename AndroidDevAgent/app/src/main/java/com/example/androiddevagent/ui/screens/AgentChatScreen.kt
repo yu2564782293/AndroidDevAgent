@@ -971,9 +971,7 @@ private fun QuickActionCard(
     enabled: Boolean = true
 ) {
     Card(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick, enabled = enabled),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (enabled) MaterialTheme.colorScheme.surfaceVariant

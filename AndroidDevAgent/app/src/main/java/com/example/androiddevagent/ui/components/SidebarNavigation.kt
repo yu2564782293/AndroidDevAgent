@@ -55,10 +55,10 @@ fun SidebarNavigation(
         SidebarNavItem(Screen.Settings, "设置", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
 
-    ModalDrawerSheet(
+    Surface(
         modifier = modifier,
-        drawerContainerColor = MaterialTheme.colorScheme.surface,
-        drawerContentColor = MaterialTheme.colorScheme.onSurface
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Column(
             modifier = Modifier
@@ -109,7 +109,7 @@ fun SidebarNavigation(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(
+            Divider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
@@ -152,7 +152,7 @@ fun SidebarNavigation(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(
+            Divider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )

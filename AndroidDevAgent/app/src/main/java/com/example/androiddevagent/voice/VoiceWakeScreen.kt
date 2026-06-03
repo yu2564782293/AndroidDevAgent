@@ -325,7 +325,7 @@ private fun EnrollmentCard(
 
             // 进度条
             LinearProgressIndicator(
-                progress = { progress.toFloat() / totalSteps },
+                progress = progress.toFloat() / totalSteps,
                 modifier = Modifier.fillMaxWidth(),
             )
 

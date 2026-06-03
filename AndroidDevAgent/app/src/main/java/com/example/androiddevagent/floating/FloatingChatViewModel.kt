@@ -8,6 +8,7 @@ import com.example.androiddevagent.agent.events.AgentEvent
 import com.example.androiddevagent.agent.events.EventStream
 import com.example.androiddevagent.agent.llm.ChatCompletionRequest
 import com.example.androiddevagent.agent.llm.LlmProvider
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
