@@ -29,11 +29,12 @@ jobs:
           echo "y" | sdkmanager "build-tools;34.0.0"
           echo "y" | sdkmanager "platforms;android-34"
 
-      - name: Verify AAPT2
-        run: ls -la $ANDROID_HOME/build-tools/34.0.0/aapt2
-
       - name: Create local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > AndroidDevAgent/local.properties
+        run: |
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" > AndroidDevAgent/local.properties
+          # AGP 8.2 缓存了 /opt/android-sdk 路径，创建符号链接解决
+          sudo rm -rf /opt/android-sdk
+          sudo ln -sf ${ANDROID_SDK_ROOT} /opt/android-sdk
 
       - name: Grant execute permission for gradlew
         run: chmod +x AndroidDevAgent/gradlew
@@ -45,9 +46,7 @@ jobs:
 
       - name: Build Debug APK
         working-directory: AndroidDevAgent
-        run: |
-          rm -rf ~/.gradle/caches/transforms-3
-          ./gradlew clean assembleDebug --stacktrace
+        run: ./gradlew clean assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
