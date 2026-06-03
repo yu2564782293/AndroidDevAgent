@@ -1,49 +1,75 @@
 package com.example.androiddevagent.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.androiddevagent.agent.AndroidDevAgent
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.AgentResponse
+import com.example.androiddevagent.agent.AndroidDevAgent
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodeGenerationScreen(
+    modifier: Modifier = Modifier,
     viewModel: CodeGenerationViewModel = hiltViewModel()
 ) {
     var userInput by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("Kotlin") }
     var generatedCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    
+
     val languages = listOf("Kotlin", "Java", "Python", "JavaScript", "Swift")
-    
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // 标题
         Text(
-            text = "智能代码生成",
-            style = MaterialTheme.typography.headlineMedium,
+            text = "描述需求并选择语言，Agent 会生成可参考的代码片段。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        
-        // 语言选择
+
         Text(
             text = "选择编程语言:",
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
@@ -58,8 +84,7 @@ fun CodeGenerationScreen(
                 )
             }
         }
-        
-        // 输入框
+
         OutlinedTextField(
             value = userInput,
             onValueChange = { userInput = it },
@@ -69,10 +94,9 @@ fun CodeGenerationScreen(
                 .height(150.dp),
             maxLines = 5
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
-        // 生成按钮
+
         Button(
             onClick = {
                 if (userInput.isNotBlank()) {
@@ -94,17 +118,16 @@ fun CodeGenerationScreen(
                 Text("生成代码")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
-        // 生成的代码显示
+
         if (generatedCode.isNotBlank()) {
             Text(
                 text = "生成的代码:",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -121,14 +144,13 @@ fun CodeGenerationScreen(
                     Text(
                         text = generatedCode,
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // 复制按钮
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -138,7 +160,7 @@ fun CodeGenerationScreen(
                 ) {
                     Text("复制代码")
                 }
-                
+
                 OutlinedButton(
                     onClick = {
                         userInput = ""
@@ -157,7 +179,7 @@ fun CodeGenerationScreen(
 class CodeGenerationViewModel @Inject constructor(
     private val agent: AndroidDevAgent
 ) : ViewModel() {
-    
+
     fun generateCode(description: String, language: String) {
         viewModelScope.launch {
             agent.generateCode(description, language)
