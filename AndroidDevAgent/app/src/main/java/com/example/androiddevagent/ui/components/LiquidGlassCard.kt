@@ -39,17 +39,17 @@ fun LiquidGlassCard(
     cornerRadius: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(cornerRadius)
+    val cardShape = RoundedCornerShape(cornerRadius)
 
     Surface(
         modifier = modifier
-            .clip(shape)
+            .clip(cardShape)
             .graphicsLayer {
-                shape = shape
+                shape = cardShape
                 clip = true
                 alpha = 0.95f
             },
-        shape = shape,
+        shape = cardShape,
         color = tintColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 0.dp,

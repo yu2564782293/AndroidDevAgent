@@ -146,7 +146,7 @@ class PersonalWakeFeatureExtractor(
         val imag = FloatArray(n)
 
         // 填充数据（零填充到 FFT 长度）
-        for (i in data.indices.coerceAtMost(n)) {
+        for (i in 0 until minOf(data.size, n)) {
             real[i] = data[i]
         }
 
@@ -290,7 +290,7 @@ class PersonalWakeFeatureExtractor(
         val energies = FloatArray(numMelFilters)
         for (m in 0 until numMelFilters) {
             var sum = 0f
-            for (k in spectrum.indices.coerceAtMost(melFilterBank[m].size)) {
+            for (k in 0 until minOf(spectrum.size, melFilterBank[m].size)) {
                 sum += spectrum[k] * melFilterBank[m][k]
             }
             energies[m] = sum

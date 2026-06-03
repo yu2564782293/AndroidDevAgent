@@ -41,6 +41,7 @@ data class SidebarNavItem(
     val badge: String? = null
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SidebarNavigation(
     currentRoute: String?,

@@ -64,13 +64,13 @@ class FloatingChatService : Service(), LifecycleOwner, SavedStateRegistryOwner,
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
-    private val viewModelStore = ViewModelStore()
+    private val store = ViewModelStore()
 
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
-    override val viewModelStoreOwner: ViewModelStore
-        get() = viewModelStore
+    override val viewModelStore: ViewModelStore
+        get() = store
 
     private lateinit var windowManager: WindowManager
     private var bubbleView: View? = null
@@ -540,10 +540,10 @@ private fun MessageBubble(message: FloatingChatMessage) {
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    val alignment = if (message.isUser) {
-        Alignment.End
+    val alignment: Alignment = if (message.isUser) {
+        Alignment.CenterEnd
     } else {
-        Alignment.Start
+        Alignment.CenterStart
     }
 
     val shape = if (message.isUser) {

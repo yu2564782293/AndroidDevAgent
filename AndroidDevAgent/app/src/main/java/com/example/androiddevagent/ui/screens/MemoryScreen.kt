@@ -381,6 +381,7 @@ private fun EmptyMemoryState() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddMemoryDialog(
     content: String,
