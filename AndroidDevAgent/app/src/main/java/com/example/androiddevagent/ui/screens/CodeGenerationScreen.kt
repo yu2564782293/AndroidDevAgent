@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,8 +36,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.AgentResponse
 import com.example.androiddevagent.agent.AndroidDevAgent
+import com.example.androiddevagent.models.CodeGenerationRequest
+import com.example.androiddevagent.models.CodeGenerationResult
+import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,11 +54,15 @@ fun CodeGenerationScreen(
     viewModel: CodeGenerationViewModel = hiltViewModel()
 ) {
     var userInput by remember { mutableStateOf("") }
-    var selectedLanguage by remember { mutableStateOf("Kotlin") }
-    var generatedCode by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    var selectedLanguage by remember { mutableStateOf(ProgrammingLanguage.KOTLIN) }
+    val uiState by viewModel.uiState.collectAsState()
 
-    val languages = listOf("Kotlin", "Java", "Python", "JavaScript", "Swift")
+    val languages = listOf(
+        ProgrammingLanguage.KOTLIN,
+        ProgrammingLanguage.JAVA,
+        ProgrammingLanguage.PYTHON,
+        ProgrammingLanguage.JAVASCRIPT
+    )
 
     Column(
         modifier = modifier
@@ -80,7 +92,7 @@ fun CodeGenerationScreen(
                 FilterChip(
                     selected = language == selectedLanguage,
                     onClick = { selectedLanguage = language },
-                    label = { Text(language) }
+                    label = { Text(language.displayName) }
                 )
             }
         }
@@ -100,14 +112,13 @@ fun CodeGenerationScreen(
         Button(
             onClick = {
                 if (userInput.isNotBlank()) {
-                    isLoading = true
                     viewModel.generateCode(userInput, selectedLanguage)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = userInput.isNotBlank() && !isLoading
+            enabled = userInput.isNotBlank() && !uiState.isLoading
         ) {
-            if (isLoading) {
+            if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     color = MaterialTheme.colorScheme.onPrimary
@@ -119,9 +130,18 @@ fun CodeGenerationScreen(
             }
         }
 
+        uiState.error?.let { error ->
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (generatedCode.isNotBlank()) {
+        if (uiState.generatedCode.isNotBlank()) {
             Text(
                 text = "生成的代码:",
                 style = MaterialTheme.typography.titleMedium,
@@ -142,7 +162,7 @@ fun CodeGenerationScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = generatedCode,
+                        text = uiState.generatedCode,
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace
                     )
@@ -164,7 +184,7 @@ fun CodeGenerationScreen(
                 OutlinedButton(
                     onClick = {
                         userInput = ""
-                        generatedCode = ""
+                        viewModel.clearResult()
                     },
                     modifier = Modifier.weight(1f)
                 ) {
@@ -180,23 +200,52 @@ class CodeGenerationViewModel @Inject constructor(
     private val agent: AndroidDevAgent
 ) : ViewModel() {
 
-    fun generateCode(description: String, language: String) {
+    private val _uiState = MutableStateFlow(CodeGenerationUiState())
+    val uiState: StateFlow<CodeGenerationUiState> = _uiState.asStateFlow()
+
+    fun generateCode(description: String, language: ProgrammingLanguage) {
         viewModelScope.launch {
-            agent.generateCode(description, language)
-                .collect { response ->
-                    when (response) {
-                        is AgentResponse.Success -> {
-                            // 更新UI状态
+            val request = CodeGenerationRequest(
+                description = description,
+                language = language
+            )
+
+            agent.generateCode(request).collect { response ->
+                when (response) {
+                    is AgentResponse.Success -> {
+                        val code = (response.data as? CodeGenerationResult)?.code
+                            ?: response.data.toString()
+                        _uiState.update {
+                            it.copy(
+                                generatedCode = code,
+                                isLoading = false,
+                                error = null
+                            )
                         }
-                        is AgentResponse.Error -> {
-                            // 处理错误
+                    }
+                    is AgentResponse.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = response.message
+                            )
                         }
-                        is AgentResponse.Loading -> {
-                            // 显示加载状态
+                    }
+                    is AgentResponse.Loading -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = true,
+                                error = null
+                            )
                         }
                     }
                 }
+            }
         }
+    }
+
+    fun clearResult() {
+        _uiState.value = CodeGenerationUiState()
     }
 }
 
