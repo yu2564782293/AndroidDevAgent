@@ -191,7 +191,7 @@ class VoiceWakeService : Service() {
             val floatBuffer = FloatArray(FRAME_SIZE)
 
             while (isRecording) {
-                val readCount = audioRecorder?.read(audioBuffer, 0, FRAME_SIZE)
+                val readCount: Int = audioRecorder?.read(audioBuffer, 0, FRAME_SIZE)
                     ?: break
 
                 if (readCount <= 0) continue

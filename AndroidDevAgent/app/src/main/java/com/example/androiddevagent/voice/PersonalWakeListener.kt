@@ -122,7 +122,7 @@ class PersonalWakeListener(
         }
 
         // 归一化距离
-        val normalizedDistance = minDistance / (features.size + templates.firstOrNull()?.size?.let { it / 2 } ?: 1)
+        val normalizedDistance = minDistance / (features.size.toFloat() + (templates.firstOrNull()?.size?.let { it / 2 } ?: 1).toFloat())
 
         return normalizedDistance <= dtwThreshold
     }

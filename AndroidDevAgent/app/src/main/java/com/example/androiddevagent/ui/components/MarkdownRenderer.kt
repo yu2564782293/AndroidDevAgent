@@ -245,7 +245,7 @@ private fun ListBlockView(block: MarkdownBlock.ListBlock, baseColor: Color) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         block.items.forEachIndexed { index, item ->
             val bullet = if (block.ordered) "${index + 1}." else "•"
-            val indent = (item.level) * 16.dp
+            val indent = 16.dp * item.level
             Row(modifier = Modifier.padding(start = indent)) {
                 Text(
                     text = "$bullet ",
