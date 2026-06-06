@@ -77,14 +77,11 @@ class AgentEngine @Inject constructor(
             content = systemPrompt
         ))
 
+        // 完整保留历史消息，而非压缩成摘要
+        // 关键：保留完整的 assistant→tool→result 对话链，确保多步任务上下文连贯
         if (historyMessages.isNotEmpty()) {
-            val historySummary = buildHistorySummary(historyMessages)
-            if (historySummary.isNotEmpty()) {
-                messages.add(ChatCompletionRequest.Message(
-                    role = "system",
-                    content = "[Previous conversation context]\n$historySummary"
-                ))
-            }
+            val condensedHistory = condenser.condenseHistory(historyMessages)
+            messages.addAll(condensedHistory)
         }
 
         messages.add(ChatCompletionRequest.Message(
@@ -295,29 +292,74 @@ class AgentEngine @Inject constructor(
         }
     }
 
+    /**
+     * 从历史消息中提取关键上下文信息，用于在 token 预算内保留最重要的信息。
+     * 优先保留：工具调用结果（特别是文件操作）、错误信息、用户关键指令
+     */
     private fun buildHistorySummary(messages: List<ChatCompletionRequest.Message>): String {
         if (messages.isEmpty()) return ""
         val sb = StringBuilder()
-        val userMsgs = messages.filter { it.role == "user" }
-        val assistantMsgs = messages.filter { it.role == "assistant" && !it.content.isNullOrBlank() }
-        val toolCalls = messages.filter { it.role == "assistant" && it.toolCalls != null }
-            .flatMap { it.toolCalls ?: emptyList() }
+        val maxChars = 6000
 
-        if (userMsgs.isNotEmpty()) {
-            sb.append("Previous user requests: ")
-            sb.append(userMsgs.takeLast(5).joinToString("; ") { it.content?.take(150) ?: "" })
+        // 1. 提取所有用户消息（完整保留最近的，摘要旧的）
+        val userMsgs = messages.filter { it.role == "user" }
+        if (userMsgs.size > 3) {
+            sb.append("[Earlier user requests] ")
+            sb.append(userMsgs.dropLast(3).joinToString("; ") { it.content?.take(100) ?: "" })
+            sb.append("\n\n")
+        }
+        val recentUserMsgs = userMsgs.takeLast(3)
+        for (msg in recentUserMsgs) {
+            sb.append("[User] ${msg.content?.take(500) ?: ""}\n\n")
+        }
+
+        // 2. 提取完整的工具调用链（assistant tool_calls + tool results）
+        val toolCallPairs = mutableListOf<Pair<String, String>>() // name(args) -> result
+        var i = 0
+        while (i < messages.size) {
+            val msg = messages[i]
+            if (msg.role == "assistant" && msg.toolCalls != null) {
+                for (tc in msg.toolCalls) {
+                    val callDesc = "${tc.function.name}(${tc.function.arguments.take(200)})"
+                    // 查找对应的 tool result
+                    val resultMsg = messages.getOrNull(i + 1)
+                    val result = if (resultMsg?.role == "tool" && resultMsg.toolCallId == tc.id) {
+                        resultMsg.content?.take(500) ?: ""
+                    } else {
+                        // 搜索匹配的 tool result
+                        messages.find { it.role == "tool" && it.toolCallId == tc.id }?.content?.take(500) ?: ""
+                    }
+                    toolCallPairs.add(callDesc to result)
+                }
+            }
+            i++
+        }
+
+        if (toolCallPairs.isNotEmpty()) {
+            sb.append("[Previous actions and results]\n")
+            // 保留所有工具调用，但截断每个结果
+            for ((callDesc, result) in toolCallPairs) {
+                sb.append("- $callDesc")
+                if (result.isNotEmpty()) {
+                    sb.append(" => ${result.take(300)}")
+                }
+                sb.append("\n")
+            }
             sb.append("\n")
         }
-        if (assistantMsgs.isNotEmpty()) {
-            sb.append("Previous assistant responses: ")
-            sb.append(assistantMsgs.takeLast(3).joinToString("; ") { it.content?.take(150) ?: "" })
+
+        // 3. 提取助手的关键决策/思考（非工具调用的 assistant 消息）
+        val assistantThoughts = messages.filter {
+            it.role == "assistant" && !it.content.isNullOrBlank() && it.toolCalls == null
+        }
+        if (assistantThoughts.isNotEmpty()) {
+            sb.append("[Assistant decisions] ")
+            sb.append(assistantThoughts.takeLast(5).joinToString("; ") {
+                it.content?.take(200) ?: ""
+            })
             sb.append("\n")
         }
-        if (toolCalls.isNotEmpty()) {
-            sb.append("Previous actions taken: ")
-            sb.append(toolCalls.takeLast(10).joinToString(", ") { "${it.function.name}(...)" })
-            sb.append("\n")
-        }
-        return sb.toString().take(2000)
+
+        return sb.toString().take(maxChars)
     }
 }
