@@ -2,7 +2,6 @@ package com.example.androiddevagent.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-<<<<<<< HEAD
 val DevBlue80 = Color(0xFFA9C7FF)
 val DevTeal80 = Color(0xFF7DD8C3)
 val DevAmber80 = Color(0xFFFFD782)
@@ -19,7 +18,6 @@ val SuccessLight = Color(0xFFEAF7EF)
 val SuccessDark = Color(0xFF123322)
 val WarningLight = Color(0xFFFFF4D6)
 val WarningDark = Color(0xFF3A2B06)
-=======
 val Primary = Color(0xFF0D47A1)
 val OnPrimary = Color(0xFFFFFFFF)
 val PrimaryContainer = Color(0xFFCFD8DC)
@@ -101,4 +99,3 @@ val AccentCyan = Color(0xFF00E5FF)
 val AccentPurple = Color(0xFFB388FF)
 val AccentAmber = Color(0xFFFFD54F)
 val AccentPink = Color(0xFFFF80AB)
->>>>>>> dev-commercial-v2

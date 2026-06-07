@@ -1,6 +1,5 @@
 package com.example.androiddevagent.ui.screens
 
-<<<<<<< HEAD
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMAuthenticationException
@@ -71,7 +70,6 @@ class SettingsViewModel @Inject constructor(
                 maxTokensInput = config.maxTokens.toString(),
                 errorMessage = null,
                 successMessage = null
-=======
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -144,12 +142,10 @@ class SettingsViewModel @Inject constructor(
                 totalCost = totalUsage.second,
                 todayTokens = todayUsage.first,
                 todayCost = todayUsage.second
->>>>>>> dev-commercial-v2
             )
         }
     }
 
-<<<<<<< HEAD
     fun onApiKeyChanged(apiKey: String) {
         updateConfig { it.copy(apiKey = InputValidator.sanitizeApiKey(apiKey)) }
     }
@@ -315,7 +311,6 @@ data class SettingsUiState(
     val selectedProvider: LLMProvider
         get() = config.provider
 }
-=======
     private fun loadSettings(): SettingsUiState {
         val activeProvider = secureStorage.getActiveProvider()
         val apiKey = secureStorage.getApiKey(activeProvider)
@@ -444,4 +439,3 @@ data class SettingsUiState(
         _uiState.value = _uiState.value.copy(maxIterations = clamped)
     }
 }
->>>>>>> dev-commercial-v2

@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
-<<<<<<< HEAD
 import com.example.androiddevagent.agent.AndroidDevAgent
 import com.example.androiddevagent.agent.LLMClient
 import com.example.androiddevagent.agent.LLMProvider
@@ -14,9 +13,7 @@ import com.example.androiddevagent.data.ProjectDatabase
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
-=======
 import com.example.androiddevagent.agent.LLMClient
->>>>>>> dev-commercial-v2
 import com.example.androiddevagent.utils.RateLimiter
 import dagger.Module
 import dagger.Provides
@@ -39,7 +36,6 @@ object AppModule {
         return PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("llm_settings")
         }
-<<<<<<< HEAD
     }
 
     @Provides
@@ -67,8 +63,6 @@ object AppModule {
         llmClient: LLMClient
     ): LLMProvider {
         return LLMProviderImpl(settingsRepository, llmClient)
-=======
->>>>>>> dev-commercial-v2
     }
 
     @Provides
@@ -83,15 +77,12 @@ object AppModule {
             .build()
     }
 
-<<<<<<< HEAD
     @Provides
     @Singleton
     fun provideRateLimiter(): RateLimiter {
         return RateLimiter()
     }
     
-=======
->>>>>>> dev-commercial-v2
     @Provides
     @Singleton
     fun provideLLMClient(okHttpClient: OkHttpClient): LLMClient {
@@ -103,13 +94,10 @@ object AppModule {
     fun provideRateLimiter(): RateLimiter {
         return RateLimiter()
     }
-<<<<<<< HEAD
 
     @Provides
     @Singleton
     fun provideConversationDao(database: ProjectDatabase): ConversationDao {
         return database.conversationDao()
     }
-=======
->>>>>>> dev-commercial-v2
 }

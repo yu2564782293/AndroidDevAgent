@@ -13,7 +13,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-<<<<<<< HEAD
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.BugReport
@@ -55,7 +54,6 @@ import com.example.androiddevagent.ui.screens.HistoryScreen
 import com.example.androiddevagent.ui.screens.HomeScreen
 import com.example.androiddevagent.ui.screens.SettingsScreen
 import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
-=======
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
@@ -78,7 +76,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.androiddevagent.ui.components.SidebarNavigation
 import com.example.androiddevagent.ui.navigation.AppNavHost
 import com.example.androiddevagent.ui.theme.DerekAITheme
->>>>>>> dev-commercial-v2
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -87,7 +84,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-<<<<<<< HEAD
             AndroidDevAgentTheme {
                 AndroidDevAgentApp()
             }
@@ -179,16 +175,13 @@ fun AndroidDevAgentApp(
                 composable(AppDestination.Settings.route) {
                     SettingsScreen()
                 }
-=======
             DerekAITheme {
                 MainApp()
->>>>>>> dev-commercial-v2
             }
         }
     }
 }
 
-<<<<<<< HEAD
 private fun NavHostController.navigateToTopLevelDestination(destination: AppDestination) {
     navigate(destination.route) {
         popUpTo(graph.findStartDestination().id) {
@@ -220,7 +213,6 @@ fun MainActivityPreview() {
     AndroidDevAgentTheme {
         AndroidDevAgentApp()
     }
-=======
 @Composable
 fun MainApp() {
     val navController = rememberNavController()
@@ -323,5 +315,4 @@ fun MainApp() {
             }
         }
     }
->>>>>>> dev-commercial-v2
 }

@@ -36,10 +36,7 @@ import com.example.androiddevagent.R
 import com.example.androiddevagent.models.ProgrammingLanguage
 import com.example.androiddevagent.ui.components.ErrorCard
 import com.example.androiddevagent.ui.components.LoadingIndicator
-<<<<<<< HEAD
 import com.example.androiddevagent.ui.theme.DevAgentTheme
-=======
->>>>>>> dev-commercial-v2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,11 +124,8 @@ fun CodeExplanationScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 colors = CardDefaults.cardColors(
-<<<<<<< HEAD
                     containerColor = DevAgentTheme.colors.aiResponseContainer
-=======
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
->>>>>>> dev-commercial-v2
                 )
             ) {
                 StreamingMarkdownText(

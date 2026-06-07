@@ -1,6 +1,5 @@
 package com.example.androiddevagent.ui.screens
 
-<<<<<<< HEAD
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,16 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-=======
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
->>>>>>> dev-commercial-v2
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-<<<<<<< HEAD
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,7 +52,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.R
 import com.example.androiddevagent.settings.LLMProvider
 import java.util.Locale
-=======
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -67,12 +62,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.agent.llm.LlmConstants
 import com.example.androiddevagent.agent.llm.LlmProviderConfig
 import com.example.androiddevagent.agent.security.SecurityLevel
->>>>>>> dev-commercial-v2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-<<<<<<< HEAD
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -240,7 +233,6 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-=======
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -485,13 +477,11 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
->>>>>>> dev-commercial-v2
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-<<<<<<< HEAD
 private fun ProviderDropdown(
     selectedProvider: LLMProvider,
     onProviderSelected: (LLMProvider) -> Unit
@@ -528,7 +518,6 @@ private fun ProviderDropdown(
                         onProviderSelected(provider)
                     }
                 )
-=======
 private fun LlmProviderSelector(
     providers: List<LlmProviderConfig>,
     selectedProvider: String,
@@ -576,14 +565,12 @@ private fun TokenUsageCard(
                 Text("累计", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${totalTokens / 1000}K", style = MaterialTheme.typography.titleMedium)
                 Text("¥${String.format("%.3f", totalCost * 7.2)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
->>>>>>> dev-commercial-v2
             }
         }
     }
 }
 
 @Composable
-<<<<<<< HEAD
 private fun ModelSuggestions(
     provider: LLMProvider,
     onModelSelected: (String) -> Unit
@@ -606,7 +593,6 @@ private fun ModelSuggestions(
                     onClick = { onModelSelected(modelName) },
                     label = { Text(modelName) }
                 )
-=======
 private fun SecurityLevelSelector(
     selected: SecurityLevel,
     onSelected: (SecurityLevel) -> Unit
@@ -661,7 +647,6 @@ private fun SecurityLevelOption(
                 Text(title, style = MaterialTheme.typography.bodyMedium)
                 Text(description, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
->>>>>>> dev-commercial-v2
             }
         }
     }
