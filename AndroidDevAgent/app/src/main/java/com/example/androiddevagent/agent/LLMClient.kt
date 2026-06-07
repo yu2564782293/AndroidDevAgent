@@ -199,7 +199,7 @@ class LLMClient(
         try {
             val json = JSONObject(data)
             val choices = json.optJSONArray("choices") ?: return ""
-            val choice = choices.optJSONObject(0) ?: return ""
+            val choice = choices.firstJSONObject() ?: return ""
             val delta = choice.optJSONObject("delta")
             val message = choice.optJSONObject("message")
 
@@ -212,8 +212,8 @@ class LLMClient(
         }
     }
 
-    private fun JSONArray.optJSONObject(index: Int): JSONObject? {
-        return if (index in 0 until length()) opt(index) as? JSONObject else null
+    private fun JSONArray.firstJSONObject(): JSONObject? {
+        return if (length() > 0) opt(0) as? JSONObject else null
     }
 
     private fun List<LLMMessage>.toJsonArray(): JSONArray {

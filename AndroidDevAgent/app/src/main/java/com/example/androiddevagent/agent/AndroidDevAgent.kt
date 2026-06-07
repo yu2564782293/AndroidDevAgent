@@ -176,7 +176,12 @@ class AndroidDevAgent @Inject constructor(
                 emit(AgentResponse.Loading("正在测试..."))
                 
                 // 运行测试
-                val testResult = runTests(compileResult.compiledCode, language)
+                val compiledCode = compileResult.compiledCode
+                if (compiledCode == null) {
+                    emit(AgentResponse.Error("编译失败: 未生成可测试代码"))
+                    return@flow
+                }
+                val testResult = runTests(compiledCode, language)
                 
                 val finalResult = CompileTestResult(
                     originalCode = code,

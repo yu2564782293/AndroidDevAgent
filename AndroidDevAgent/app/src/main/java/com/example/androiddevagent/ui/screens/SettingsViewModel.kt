@@ -62,8 +62,10 @@ class SettingsViewModel @Inject constructor(
 
     fun onProviderSelected(provider: LLMProvider) {
         _uiState.update { state ->
+            val config = state.config.withProviderDefaults(provider)
             state.copy(
-                config = state.config.withProviderDefaults(provider),
+                config = config,
+                maxTokensInput = config.maxTokens.toString(),
                 errorMessage = null,
                 successMessage = null
             )

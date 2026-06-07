@@ -1,0 +1,33 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+gen/
+out/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+
+# Kotlin
+*.kotlin_module
+
+# Kotlin
+*.kotlin_module
+
+# AndroidDevAgent specific
+AndroidDevAgent/.gradle/
+AndroidDevAgent/**/build/
+AndroidDevAgent/local.properties
+AndroidDevAgent/app/build/
+AndroidDevAgent/**/.cxx/

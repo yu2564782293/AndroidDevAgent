@@ -47,7 +47,7 @@ android {
     }
     
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.7'
+        kotlinCompilerExtensionVersion '1.5.8'
     }
     
     packaging {
@@ -89,7 +89,6 @@ dependencies {
     
     // 设置与加密
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
-    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
     
     // 协程
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'

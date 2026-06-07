@@ -29,23 +29,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.androiddevagent.agent.AgentResponse
-import com.example.androiddevagent.agent.AndroidDevAgent
-import com.example.androiddevagent.models.CodeGenerationRequest
-import com.example.androiddevagent.models.CodeGenerationResult
+import com.example.androiddevagent.agent.LLMProvider
 import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -58,7 +57,7 @@ fun CodeGenerationScreen(
     var userInput by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf(ProgrammingLanguage.KOTLIN) }
     val uiState by viewModel.uiState.collectAsState()
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     val languages = listOf(
         ProgrammingLanguage.KOTLIN,
@@ -179,7 +178,7 @@ fun CodeGenerationScreen(
             ) {
                 OutlinedButton(
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(uiState.generatedCode))
+                        copyTextToClipboard(context, "生成的代码", uiState.generatedCode)
                     },
                     modifier = Modifier.weight(1f)
                 ) {
@@ -202,55 +201,78 @@ fun CodeGenerationScreen(
 
 @HiltViewModel
 class CodeGenerationViewModel @Inject constructor(
-    private val agent: AndroidDevAgent
+    private val llmProvider: LLMProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodeGenerationUiState())
     val uiState: StateFlow<CodeGenerationUiState> = _uiState.asStateFlow()
 
+    private var generationJob: Job? = null
+
     fun generateCode(description: String, language: ProgrammingLanguage) {
-        viewModelScope.launch {
-            val request = CodeGenerationRequest(
-                description = description,
-                language = language
+        val trimmedDescription = description.trim()
+        if (trimmedDescription.isBlank()) {
+            _uiState.update { it.copy(error = "请先描述你想要生成的代码") }
+            return
+        }
+
+        generationJob?.cancel()
+        generationJob = viewModelScope.launch {
+            _uiState.value = CodeGenerationUiState(
+                isLoading = true
             )
 
-            agent.generateCode(request).collect { response ->
-                when (response) {
-                    is AgentResponse.Success -> {
-                        val code = (response.data as? CodeGenerationResult)?.code
-                            ?: response.data.toString()
-                        _uiState.update {
-                            it.copy(
-                                generatedCode = code,
-                                isLoading = false,
-                                error = null
-                            )
-                        }
+            try {
+                llmProvider.streamCompletion(
+                    buildCodeGenerationPrompt(trimmedDescription, language)
+                ).collect { token ->
+                    _uiState.update {
+                        it.copy(
+                            generatedCode = it.generatedCode + token,
+                            error = null
+                        )
                     }
-                    is AgentResponse.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = response.message
-                            )
-                        }
-                    }
-                    is AgentResponse.Loading -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = true,
-                                error = null
-                            )
-                        }
-                    }
+                }
+
+                _uiState.update {
+                    it.copy(isLoading = false)
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = exception.message ?: "代码生成失败"
+                    )
                 }
             }
         }
     }
 
     fun clearResult() {
+        generationJob?.cancel()
         _uiState.value = CodeGenerationUiState()
+    }
+
+    private fun buildCodeGenerationPrompt(
+        description: String,
+        language: ProgrammingLanguage
+    ): String {
+        return """
+            系统指令：你是 AndroidDevAgent，专注帮助 Android 开发者生成可靠、可维护的代码。请根据用户需求生成完整、可参考的 ${language.displayName} 代码。
+
+            请提供：
+            1. 可直接参考的完整实现代码，使用 Markdown fenced code block。
+            2. 必要的错误处理、边界条件和生命周期注意事项。
+            3. 关键实现说明和 Android 最佳实践建议。
+            4. 如需求不完整，请先基于明确假设生成方案，并列出假设。
+
+            用户需求：
+            ```text
+            $description
+            ```
+        """.trimIndent()
     }
 }
 

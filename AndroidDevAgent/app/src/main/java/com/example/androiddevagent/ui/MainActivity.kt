@@ -34,10 +34,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.androiddevagent.ui.screens.ArchitectureScreen
 import com.example.androiddevagent.ui.screens.CodeGenerationScreen
+import com.example.androiddevagent.ui.screens.CodeExplanationScreen
+import com.example.androiddevagent.ui.screens.DebugScreen
 import com.example.androiddevagent.ui.screens.HomeScreen
 import com.example.androiddevagent.ui.screens.SettingsScreen
-import com.example.androiddevagent.ui.screens.SimpleFeatureScreen
 import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -123,25 +125,13 @@ fun AndroidDevAgentApp(
                     CodeGenerationScreen()
                 }
                 composable(AppDestination.CodeExplanation.route) {
-                    SimpleFeatureScreen(
-                        title = "代码解释",
-                        description = "粘贴代码后，Android Dev Agent 将帮助你梳理实现逻辑、关键 API 与潜在风险。",
-                        actionText = "开始分析"
-                    )
+                    CodeExplanationScreen()
                 }
                 composable(AppDestination.Debugging.route) {
-                    SimpleFeatureScreen(
-                        title = "调试助手",
-                        description = "输入报错信息、Logcat 或复现步骤，快速定位问题并获得修复建议。",
-                        actionText = "提交问题"
-                    )
+                    DebugScreen()
                 }
                 composable(AppDestination.Architecture.route) {
-                    SimpleFeatureScreen(
-                        title = "架构设计",
-                        description = "描述业务目标和技术约束，获取模块划分、数据流和工程结构建议。",
-                        actionText = "生成方案"
-                    )
+                    ArchitectureScreen()
                 }
                 composable(AppDestination.Settings.route) {
                     SettingsScreen()

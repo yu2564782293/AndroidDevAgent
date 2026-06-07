@@ -89,15 +89,10 @@ class LLMProviderImpl @Inject constructor(
     private var currentConfig: LLMConfig = LLMConfig.DEFAULT
 
     @Volatile
-    private var parameters: ModelParameters = ModelParameters()
+    private var parameterOverride: ModelParameters? = null
 
     override suspend fun configure() {
         currentConfig = settingsRepository.configFlow.first()
-        parameters = ModelParameters(
-            temperature = currentConfig.temperature,
-            topP = currentConfig.topP,
-            maxTokens = currentConfig.maxTokens
-        )
     }
 
     override suspend fun generateCompletion(prompt: String): String {
@@ -112,7 +107,7 @@ class LLMProviderImpl @Inject constructor(
     override fun streamCompletion(prompt: String): Flow<String> {
         return flow {
             configure()
-            val config = currentConfig.withParameters(parameters)
+            val config = currentConfig.withParameters(parameterOverride ?: currentConfig.toModelParameters())
             llmClient.streamChatCompletion(
                 config = config,
                 messages = listOf(
@@ -130,6 +125,7 @@ class LLMProviderImpl @Inject constructor(
 
     override fun getModelInfo(): ModelInfo {
         val config = currentConfig
+        val activeParameters = parameterOverride ?: config.toModelParameters()
         return ModelInfo(
             name = config.modelName,
             version = "OpenAI-compatible chat completions",
@@ -141,7 +137,7 @@ class LLMProviderImpl @Inject constructor(
                 "架构设计",
                 "流式输出"
             ),
-            maxTokens = parameters.maxTokens
+            maxTokens = activeParameters.maxTokens
         )
     }
 
@@ -153,7 +149,7 @@ class LLMProviderImpl @Inject constructor(
     }
 
     override fun setParameters(parameters: ModelParameters) {
-        this.parameters = parameters
+        this.parameterOverride = parameters
     }
 
     private fun LLMConfig.withParameters(parameters: ModelParameters): LLMConfig {
@@ -161,6 +157,14 @@ class LLMProviderImpl @Inject constructor(
             temperature = parameters.temperature,
             topP = parameters.topP,
             maxTokens = parameters.maxTokens
+        )
+    }
+
+    private fun LLMConfig.toModelParameters(): ModelParameters {
+        return ModelParameters(
+            temperature = temperature,
+            topP = topP,
+            maxTokens = maxTokens
         )
     }
 }
