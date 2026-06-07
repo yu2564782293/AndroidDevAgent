@@ -2,7 +2,11 @@ package com.example.androiddevagent.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+<<<<<<< HEAD
 import com.example.androiddevagent.agent.LLMProvider
+=======
+import com.example.androiddevagent.agent.llm.LlmProvider
+>>>>>>> dev-commercial-v2
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.entity.Conversation
 import com.example.androiddevagent.models.ProgrammingLanguage
@@ -22,7 +26,11 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class CodeExplanationViewModel @Inject constructor(
+<<<<<<< HEAD
     private val llmProvider: LLMProvider,
+=======
+    private val llmProvider: LlmProvider,
+>>>>>>> dev-commercial-v2
     private val conversationDao: ConversationDao,
     private val rateLimiter: RateLimiter
 ) : ViewModel() {

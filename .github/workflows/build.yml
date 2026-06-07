@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, trae/solo-agent-uNtcW8 ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -21,14 +21,45 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Build Tools and Platform
+        run: |
+          sdkmanager "build-tools;34.0.0"
+          sdkmanager "platforms;android-34"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2 || echo "aapt2 not at ANDROID_SDK_ROOT"
+          ls -la /usr/local/lib/android/sdk/build-tools/34.0.0/aapt2 || echo "aapt2 not at default path"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: false
+
+      - name: Create local.properties
+        working-directory: AndroidDevAgent
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+
       - name: Grant execute permission for gradlew
-        run: chmod +x AndroidDevAgent/gradlew
+        working-directory: AndroidDevAgent
+        run: chmod +x gradlew
 
       - name: Build Debug APK
         working-directory: AndroidDevAgent
-        run: ./gradlew assembleDebug
+        run: set -o pipefail && ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.txt
+
+      - name: Upload build output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: AndroidDevAgent/build_output.txt
+          retention-days: 7
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk

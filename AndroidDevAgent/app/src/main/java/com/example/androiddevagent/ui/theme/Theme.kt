@@ -8,14 +8,21 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Composable
+<<<<<<< HEAD
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+=======
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
+>>>>>>> dev-commercial-v2
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
+<<<<<<< HEAD
     primary = DevBlue80,
     onPrimary = Color(0xFF062A60),
     primaryContainer = Color(0xFF173D74),
@@ -116,11 +123,74 @@ object DevAgentTheme {
         @Composable
         get() = LocalDevAgentColors.current
 }
+=======
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
+    tertiaryContainer = DarkTertiaryContainer,
+    onTertiaryContainer = DarkOnTertiaryContainer,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant
+)
+
+private val LightColorScheme = lightColorScheme(
+    primary = Primary,
+    onPrimary = OnPrimary,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
+    secondary = Secondary,
+    onSecondary = OnSecondary,
+    secondaryContainer = SecondaryContainer,
+    onSecondaryContainer = OnSecondaryContainer,
+    tertiary = Tertiary,
+    onTertiary = OnTertiary,
+    tertiaryContainer = TertiaryContainer,
+    onTertiaryContainer = OnTertiaryContainer,
+    error = Error,
+    onError = OnError,
+    errorContainer = ErrorContainer,
+    onErrorContainer = OnErrorContainer,
+    background = Background,
+    onBackground = OnBackground,
+    surface = Surface,
+    onSurface = OnSurface,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    outline = Outline,
+    outlineVariant = OutlineVariant
+)
+
+// 液态玻璃主题状态
+val LocalGlassDarkTheme = compositionLocalOf { false }
+>>>>>>> dev-commercial-v2
 
 @Composable
-fun AndroidDevAgentTheme(
+fun isDarkGlassTheme(): Boolean = LocalGlassDarkTheme.current
+
+@Composable
+fun DerekAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+<<<<<<< HEAD
     // Dynamic color is available on Android 12+
+=======
+>>>>>>> dev-commercial-v2
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -136,15 +206,23 @@ fun AndroidDevAgentTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+<<<<<<< HEAD
             window.statusBarColor = colorScheme.surface.toArgb()
             window.navigationBarColor = colorScheme.surface.toArgb()
+=======
+            window.statusBarColor = if (darkTheme) DarkSurface.toArgb() else colorScheme.surface.toArgb()
+>>>>>>> dev-commercial-v2
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
+<<<<<<< HEAD
     androidx.compose.runtime.CompositionLocalProvider(
         LocalDevAgentColors provides devAgentColors
     ) {
+=======
+    CompositionLocalProvider(LocalGlassDarkTheme provides darkTheme) {
+>>>>>>> dev-commercial-v2
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

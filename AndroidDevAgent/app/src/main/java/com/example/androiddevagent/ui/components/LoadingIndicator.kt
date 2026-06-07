@@ -26,7 +26,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.androiddevagent.R
+<<<<<<< HEAD
 import com.example.androiddevagent.ui.theme.DevAgentTheme
+=======
+>>>>>>> dev-commercial-v2
 
 @Composable
 fun LoadingIndicator(
@@ -50,7 +53,11 @@ fun LoadingIndicator(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
+<<<<<<< HEAD
             containerColor = DevAgentTheme.colors.aiResponseContainer
+=======
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+>>>>>>> dev-commercial-v2
         )
     ) {
         Row(
@@ -70,7 +77,11 @@ fun LoadingIndicator(
                 text = statusMessage ?: stringResource(R.string.loading_default_message),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
+<<<<<<< HEAD
                 color = DevAgentTheme.colors.onAiResponseContainer
+=======
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+>>>>>>> dev-commercial-v2
             )
         }
     }

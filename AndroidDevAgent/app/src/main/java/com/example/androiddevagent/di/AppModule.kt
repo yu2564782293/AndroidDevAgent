@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+<<<<<<< HEAD
 import com.example.androiddevagent.agent.AndroidDevAgent
 import com.example.androiddevagent.agent.LLMClient
 import com.example.androiddevagent.agent.LLMProvider
@@ -13,6 +14,9 @@ import com.example.androiddevagent.data.ProjectDatabase
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
+=======
+import com.example.androiddevagent.agent.LLMClient
+>>>>>>> dev-commercial-v2
 import com.example.androiddevagent.utils.RateLimiter
 import dagger.Module
 import dagger.Provides
@@ -26,7 +30,7 @@ import okhttp3.OkHttpClient
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    
+
     @Provides
     @Singleton
     fun provideSettingsDataStore(
@@ -35,6 +39,7 @@ object AppModule {
         return PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("llm_settings")
         }
+<<<<<<< HEAD
     }
 
     @Provides
@@ -62,12 +67,35 @@ object AppModule {
         llmClient: LLMClient
     ): LLMProvider {
         return LLMProviderImpl(settingsRepository, llmClient)
+=======
+>>>>>>> dev-commercial-v2
     }
-    
+
     @Provides
     @Singleton
-    fun provideAndroidDevAgent(llmProvider: LLMProvider): AndroidDevAgent {
-        return AndroidDevAgent(llmProvider)
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
+
+<<<<<<< HEAD
+    @Provides
+    @Singleton
+    fun provideRateLimiter(): RateLimiter {
+        return RateLimiter()
+    }
+    
+=======
+>>>>>>> dev-commercial-v2
+    @Provides
+    @Singleton
+    fun provideLLMClient(okHttpClient: OkHttpClient): LLMClient {
+        return LLMClient(okHttpClient)
     }
 
     @Provides
@@ -75,22 +103,13 @@ object AppModule {
     fun provideRateLimiter(): RateLimiter {
         return RateLimiter()
     }
-    
-    @Provides
-    @Singleton
-    fun provideProjectDatabase(@ApplicationContext context: Context): ProjectDatabase {
-        return ProjectDatabase.getDatabase(context)
-    }
-    
-    @Provides
-    @Singleton
-    fun provideProjectDao(database: ProjectDatabase): ProjectDao {
-        return database.projectDao()
-    }
+<<<<<<< HEAD
 
     @Provides
     @Singleton
     fun provideConversationDao(database: ProjectDatabase): ConversationDao {
         return database.conversationDao()
     }
+=======
+>>>>>>> dev-commercial-v2
 }
