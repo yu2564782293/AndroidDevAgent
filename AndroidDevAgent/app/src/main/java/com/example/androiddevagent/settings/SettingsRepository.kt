@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.androiddevagent.utils.InputValidator
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -88,9 +89,9 @@ class SettingsRepository @Inject constructor(
     private fun LLMConfig.sanitized(): LLMConfig {
         return copy(
             providerName = provider.name,
-            apiKey = apiKey.trim(),
-            baseUrl = baseUrl.trim().trimEnd('/'),
-            modelName = modelName.trim(),
+            apiKey = InputValidator.sanitizeApiKey(apiKey),
+            baseUrl = InputValidator.sanitizeBaseUrl(baseUrl),
+            modelName = InputValidator.sanitizeModelName(modelName),
             temperature = temperature.coerceIn(0.0, 2.0),
             topP = topP.coerceIn(0.0, 1.0),
             maxTokens = maxTokens.coerceAtLeast(1)

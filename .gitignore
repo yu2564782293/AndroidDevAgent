@@ -29,5 +29,6 @@ out/
 AndroidDevAgent/.gradle/
 AndroidDevAgent/**/build/
 AndroidDevAgent/local.properties
+AndroidDevAgent/release-signing.properties
 AndroidDevAgent/app/build/
 AndroidDevAgent/**/.cxx/

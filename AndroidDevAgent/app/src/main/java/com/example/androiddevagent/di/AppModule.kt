@@ -13,6 +13,7 @@ import com.example.androiddevagent.data.ProjectDatabase
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
+import com.example.androiddevagent.utils.RateLimiter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -67,6 +68,12 @@ object AppModule {
     @Singleton
     fun provideAndroidDevAgent(llmProvider: LLMProvider): AndroidDevAgent {
         return AndroidDevAgent(llmProvider)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRateLimiter(): RateLimiter {
+        return RateLimiter()
     }
     
     @Provides

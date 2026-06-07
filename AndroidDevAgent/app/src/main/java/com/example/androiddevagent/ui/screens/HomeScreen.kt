@@ -32,11 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.R
 import com.example.androiddevagent.BuildConfig
 import com.example.androiddevagent.data.entity.Conversation
 import java.text.SimpleDateFormat
@@ -54,26 +56,26 @@ fun HomeScreen(
 ) {
     val features = listOf(
         FeatureItem(
-            title = "代码生成",
-            description = "把功能需求转成 Kotlin、Java 或脚本代码，并附带实现说明。",
+            title = stringResource(R.string.feature_code_generation_title),
+            description = stringResource(R.string.feature_code_generation_description),
             icon = Icons.Filled.Code,
             onClick = onNavigateToCodeGeneration
         ),
         FeatureItem(
-            title = "代码解释",
-            description = "拆解代码执行流程、设计模式、风险点和优化方向。",
+            title = stringResource(R.string.feature_code_explanation_title),
+            description = stringResource(R.string.feature_code_explanation_description),
             icon = Icons.Filled.MenuBook,
             onClick = onNavigateToCodeExplanation
         ),
         FeatureItem(
-            title = "调试助手",
-            description = "分析崩溃堆栈、编译错误和 Logcat，给出修复步骤。",
+            title = stringResource(R.string.feature_debug_title),
+            description = stringResource(R.string.feature_debug_description),
             icon = Icons.Filled.BugReport,
             onClick = onNavigateToDebugging
         ),
         FeatureItem(
-            title = "架构设计",
-            description = "根据项目目标规划模块边界、数据流、技术栈和落地节奏。",
+            title = stringResource(R.string.feature_architecture_title),
+            description = stringResource(R.string.feature_architecture_description),
             icon = Icons.Filled.AccountTree,
             onClick = onNavigateToArchitecture
         )
@@ -132,14 +134,14 @@ private fun WelcomeCard() {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "您的智能安卓开发助手",
+                text = stringResource(R.string.home_welcome_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "通过底部导航快速切换功能，也可以从首页卡片进入常用工作流。完成的 AI 对话会自动沉淀到历史记录。",
+                text = stringResource(R.string.home_welcome_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -201,7 +203,7 @@ private fun RecentConversationsSection(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "最近对话",
+            text = stringResource(R.string.home_recent_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -214,7 +216,7 @@ private fun RecentConversationsSection(
                 )
             ) {
                 Text(
-                    text = "暂无对话记录，完成一次代码生成、解释、调试或架构设计后会显示在这里。",
+                    text = stringResource(R.string.home_recent_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(16.dp)
@@ -233,9 +235,8 @@ private fun RecentConversationCard(
     conversation: Conversation,
     modifier: Modifier = Modifier
 ) {
-    val screenLabel = remember(conversation.screenType) {
-        conversation.screenType.toHomeScreenLabel()
-    }
+    val screenLabel = conversation.screenType.toHomeScreenLabel()
+    val emptyInputText = stringResource(R.string.empty_input)
     val timestamp = remember(conversation.createdAt) {
         conversation.createdAt.toHomeTimeText()
     }
@@ -269,7 +270,7 @@ private fun RecentConversationCard(
             }
 
             Text(
-                text = conversation.userMessage.homePreview(),
+                text = conversation.userMessage.homePreview(emptyInputText),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
@@ -282,7 +283,7 @@ private fun RecentConversationCard(
 @Composable
 private fun AppVersionFooter() {
     Text(
-        text = "Android Dev Agent v${BuildConfig.VERSION_NAME}",
+        text = stringResource(R.string.app_version_format, BuildConfig.VERSION_NAME),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.outline,
         textAlign = TextAlign.Center,
@@ -292,20 +293,21 @@ private fun AppVersionFooter() {
     )
 }
 
+@Composable
 private fun String.toHomeScreenLabel(): String {
     return when (this) {
-        "code_gen" -> "代码生成"
-        "code_explain" -> "代码解释"
-        "debug" -> "调试"
-        "architecture" -> "架构"
-        else -> "对话"
+        "code_gen" -> stringResource(R.string.screen_label_code_generation)
+        "code_explain" -> stringResource(R.string.screen_label_code_explanation)
+        "debug" -> stringResource(R.string.screen_label_debug)
+        "architecture" -> stringResource(R.string.screen_label_architecture)
+        else -> stringResource(R.string.screen_label_conversation)
     }
 }
 
-private fun String.homePreview(): String {
+private fun String.homePreview(emptyText: String): String {
     return trim()
         .replace(Regex("\\s+"), " ")
-        .ifBlank { "无输入内容" }
+        .ifBlank { emptyText }
 }
 
 private fun Long.toHomeTimeText(): String {

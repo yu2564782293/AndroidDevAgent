@@ -16,8 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.androiddevagent.R
 
 @Composable
 fun ErrorCard(
@@ -46,7 +48,7 @@ fun ErrorCard(
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
-                    text = "操作失败",
+                    text = stringResource(R.string.error_card_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onErrorContainer
@@ -64,7 +66,7 @@ fun ErrorCard(
                 enabled = retryEnabled,
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Text("重试")
+                Text(stringResource(R.string.btn_retry))
             }
         }
     }

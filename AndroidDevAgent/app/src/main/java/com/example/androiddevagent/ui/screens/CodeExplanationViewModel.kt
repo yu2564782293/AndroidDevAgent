@@ -6,6 +6,9 @@ import com.example.androiddevagent.agent.LLMProvider
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.entity.Conversation
 import com.example.androiddevagent.models.ProgrammingLanguage
+import com.example.androiddevagent.utils.InputValidator
+import com.example.androiddevagent.utils.RateLimitResult
+import com.example.androiddevagent.utils.RateLimiter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -20,7 +23,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class CodeExplanationViewModel @Inject constructor(
     private val llmProvider: LLMProvider,
-    private val conversationDao: ConversationDao
+    private val conversationDao: ConversationDao,
+    private val rateLimiter: RateLimiter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodeExplanationUiState())
@@ -29,17 +33,31 @@ class CodeExplanationViewModel @Inject constructor(
     private var explanationJob: Job? = null
 
     fun explainCode(code: String, language: ProgrammingLanguage) {
-        val trimmedCode = code.trim()
+        val sanitizedInput = InputValidator.sanitizeUserInput(code)
+        val trimmedCode = sanitizedInput.value
         if (trimmedCode.isBlank()) {
             _uiState.update { it.copy(errorMessage = "请先粘贴需要解释的代码") }
             return
+        }
+
+        val rateLimitWarning = when (val rateLimitResult = rateLimiter.tryAcquire(ACTION_KEY)) {
+            is RateLimitResult.Allowed -> rateLimitResult.warningMessage
+            is RateLimitResult.Blocked -> {
+                _uiState.update { it.copy(errorMessage = rateLimitResult.message) }
+                return
+            }
         }
 
         explanationJob?.cancel()
         explanationJob = viewModelScope.launch {
             _uiState.value = CodeExplanationUiState(
                 isLoading = true,
-                loadingMessage = "正在解释代码..."
+                loadingMessage = if (sanitizedInput.wasTruncated) {
+                    "输入内容已截断至 ${sanitizedInput.maxLength} 字符，正在解释代码..."
+                } else {
+                    "正在解释代码..."
+                },
+                errorMessage = rateLimitWarning
             )
 
             try {
@@ -134,6 +152,10 @@ class CodeExplanationViewModel @Inject constructor(
             $code
             ```
         """.trimIndent()
+    }
+
+    private companion object {
+        const val ACTION_KEY = "code_explanation"
     }
 }
 

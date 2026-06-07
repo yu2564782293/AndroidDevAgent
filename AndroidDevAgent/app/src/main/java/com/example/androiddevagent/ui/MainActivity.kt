@@ -27,7 +27,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.annotation.StringRes
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -35,6 +37,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.androiddevagent.R
 import com.example.androiddevagent.ui.screens.ArchitectureScreen
 import com.example.androiddevagent.ui.screens.CodeGenerationScreen
 import com.example.androiddevagent.ui.screens.CodeExplanationScreen
@@ -75,7 +78,7 @@ fun AndroidDevAgentApp(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(currentDestination.title) },
+                    title = { Text(stringResource(currentDestination.titleRes)) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -93,10 +96,10 @@ fun AndroidDevAgentApp(
                             icon = {
                                 Icon(
                                     imageVector = destination.icon,
-                                    contentDescription = destination.title
+                                    contentDescription = stringResource(destination.titleRes)
                                 )
                             },
-                            label = { Text(destination.label) }
+                            label = { Text(stringResource(destination.labelRes)) }
                         )
                     }
                 }
@@ -158,17 +161,17 @@ private fun NavHostController.navigateToTopLevelDestination(destination: AppDest
 
 enum class AppDestination(
     val route: String,
-    val title: String,
-    val label: String,
+    @StringRes val titleRes: Int,
+    @StringRes val labelRes: Int,
     val icon: ImageVector
 ) {
-    Home("home", "Android Dev Agent", "首页", Icons.Filled.Home),
-    CodeGeneration("code_generation", "智能代码生成", "生成", Icons.Filled.Code),
-    CodeExplanation("code_explanation", "代码解释", "解释", Icons.Filled.MenuBook),
-    Debugging("debugging", "调试助手", "调试", Icons.Filled.BugReport),
-    Architecture("architecture", "架构设计", "架构", Icons.Filled.AccountTree),
-    History("history", "对话历史", "历史", Icons.Filled.History),
-    Settings("settings", "设置", "设置", Icons.Filled.Settings)
+    Home("home", R.string.title_home, R.string.nav_home, Icons.Filled.Home),
+    CodeGeneration("code_generation", R.string.title_code_generation, R.string.nav_generate, Icons.Filled.Code),
+    CodeExplanation("code_explanation", R.string.title_code_explanation, R.string.nav_explain, Icons.Filled.MenuBook),
+    Debugging("debugging", R.string.title_debugging, R.string.nav_debug, Icons.Filled.BugReport),
+    Architecture("architecture", R.string.title_architecture, R.string.nav_architecture, Icons.Filled.AccountTree),
+    History("history", R.string.title_history, R.string.nav_history, Icons.Filled.History),
+    Settings("settings", R.string.title_settings, R.string.nav_settings, Icons.Filled.Settings)
 }
 
 @Preview(showBackground = true)

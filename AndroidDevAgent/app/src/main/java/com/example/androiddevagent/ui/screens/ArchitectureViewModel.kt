@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.entity.Conversation
+import com.example.androiddevagent.utils.InputValidator
+import com.example.androiddevagent.utils.RateLimitResult
+import com.example.androiddevagent.utils.RateLimiter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -19,7 +22,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ArchitectureViewModel @Inject constructor(
     private val llmProvider: LLMProvider,
-    private val conversationDao: ConversationDao
+    private val conversationDao: ConversationDao,
+    private val rateLimiter: RateLimiter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ArchitectureUiState())
@@ -28,17 +32,31 @@ class ArchitectureViewModel @Inject constructor(
     private var proposalJob: Job? = null
 
     fun designArchitecture(requirements: String, projectType: String) {
-        val trimmedRequirements = requirements.trim()
+        val sanitizedInput = InputValidator.sanitizeUserInput(requirements)
+        val trimmedRequirements = sanitizedInput.value
         if (trimmedRequirements.isBlank()) {
             _uiState.update { it.copy(errorMessage = "请先输入项目描述或需求") }
             return
+        }
+
+        val rateLimitWarning = when (val rateLimitResult = rateLimiter.tryAcquire(ACTION_KEY)) {
+            is RateLimitResult.Allowed -> rateLimitResult.warningMessage
+            is RateLimitResult.Blocked -> {
+                _uiState.update { it.copy(errorMessage = rateLimitResult.message) }
+                return
+            }
         }
 
         proposalJob?.cancel()
         proposalJob = viewModelScope.launch {
             _uiState.value = ArchitectureUiState(
                 isLoading = true,
-                loadingMessage = "正在设计架构..."
+                loadingMessage = if (sanitizedInput.wasTruncated) {
+                    "输入内容已截断至 ${sanitizedInput.maxLength} 字符，正在设计架构..."
+                } else {
+                    "正在设计架构..."
+                },
+                errorMessage = rateLimitWarning
             )
 
             try {
@@ -135,6 +153,10 @@ class ArchitectureViewModel @Inject constructor(
             $requirements
             ```
         """.trimIndent()
+    }
+
+    private companion object {
+        const val ACTION_KEY = "architecture_design"
     }
 }
 

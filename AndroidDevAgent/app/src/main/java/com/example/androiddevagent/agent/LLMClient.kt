@@ -1,6 +1,9 @@
 package com.example.androiddevagent.agent
 
 import com.example.androiddevagent.settings.LLMConfig
+import com.example.androiddevagent.utils.InputValidator
+import com.example.androiddevagent.utils.ValidationResult
+import com.example.androiddevagent.utils.errorOrNull
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.ConnectException
@@ -139,8 +142,8 @@ class LLMClient(
         topP: Double
     ): Request {
         val body = JSONObject()
-            .put("model", modelName.trim())
-            .put("messages", messages.toJsonArray())
+            .put("model", InputValidator.sanitizeModelName(modelName))
+            .put("messages", messages.sanitized().toJsonArray())
             .put("temperature", temperature.coerceIn(0.0, 2.0))
             .put("top_p", topP.coerceIn(0.0, 1.0))
             .put("max_tokens", maxTokens.coerceAtLeast(1))
@@ -150,7 +153,7 @@ class LLMClient(
 
         return Request.Builder()
             .url(buildChatCompletionsUrl(baseUrl))
-            .addHeader("Authorization", "Bearer ${apiKey.trim()}")
+            .addHeader("Authorization", "Bearer ${InputValidator.sanitizeApiKey(apiKey)}")
             .addHeader("Accept", "text/event-stream")
             .addHeader("Content-Type", "application/json")
             .addHeader("Cache-Control", "no-cache")
@@ -228,6 +231,15 @@ class LLMClient(
         }
     }
 
+    private fun List<LLMMessage>.sanitized(): List<LLMMessage> {
+        return map { message ->
+            message.copy(
+                role = message.role.trim(),
+                content = InputValidator.sanitizeUserInput(message.content).value
+            )
+        }
+    }
+
     private fun validateRequestInputs(
         baseUrl: String,
         apiKey: String,
@@ -235,19 +247,27 @@ class LLMClient(
         modelName: String,
         maxTokens: Int
     ) {
+        val apiKeyValidation = InputValidator.validateApiKey(apiKey)
+        val urlValidation = InputValidator.validateUrl(baseUrl)
+        val modelNameValidation = InputValidator.validateModelName(modelName)
+
         when {
-            apiKey.isBlank() -> throw LLMAuthenticationException("请先在设置中填写 API Key")
-            baseUrl.isBlank() -> throw LLMApiException(message = "请先填写 Base URL")
-            modelName.isBlank() -> throw LLMApiException(message = "请先填写模型名称")
+            apiKeyValidation is ValidationResult.Invalid -> throw LLMAuthenticationException(apiKeyValidation.message)
+            urlValidation is ValidationResult.Invalid -> throw LLMApiException(message = urlValidation.message)
+            modelNameValidation is ValidationResult.Invalid -> throw LLMApiException(message = modelNameValidation.message)
             messages.isEmpty() -> throw LLMApiException(message = "消息列表不能为空")
-            messages.any { it.role.isBlank() || it.content.isBlank() } ->
+            messages.any { it.role.isBlank() || InputValidator.sanitizeUserInput(it.content).value.isBlank() } ->
                 throw LLMApiException(message = "消息内容不能为空")
             maxTokens <= 0 -> throw LLMApiException(message = "最大 Token 数必须大于 0")
         }
     }
 
     private fun buildChatCompletionsUrl(baseUrl: String): HttpUrl {
-        val normalizedBaseUrl = baseUrl.trim().trimEnd('/')
+        InputValidator.validateUrl(baseUrl).errorOrNull()?.let { message ->
+            throw LLMApiException(message = message)
+        }
+
+        val normalizedBaseUrl = InputValidator.sanitizeBaseUrl(baseUrl)
         val endpoint = when {
             normalizedBaseUrl.endsWith("/chat/completions") -> normalizedBaseUrl
             normalizedBaseUrl.endsWith("/v1") || normalizedBaseUrl.endsWith("/v4") ->

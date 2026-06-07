@@ -1,7 +1,9 @@
 package com.example.androiddevagent.ui.screens
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.androiddevagent.R
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.entity.Conversation
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -79,12 +81,12 @@ data class HistoryUiState(
 )
 
 enum class HistoryFilter(
-    val label: String,
+    @StringRes val labelRes: Int,
     val screenType: String?
 ) {
-    All("全部", null),
-    CodeGeneration("代码生成", "code_gen"),
-    CodeExplanation("代码解释", "code_explain"),
-    Debug("调试", "debug"),
-    Architecture("架构", "architecture")
+    All(R.string.history_filter_all, null),
+    CodeGeneration(R.string.screen_label_code_generation, "code_gen"),
+    CodeExplanation(R.string.screen_label_code_explanation, "code_explain"),
+    Debug(R.string.screen_label_debug, "debug"),
+    Architecture(R.string.screen_label_architecture, "architecture")
 }

@@ -48,10 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.R
 import com.example.androiddevagent.data.entity.Conversation
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -73,7 +75,7 @@ fun HistoryScreen(
         OutlinedTextField(
             value = uiState.searchQuery,
             onValueChange = viewModel::updateSearchQuery,
-            label = { Text("搜索对话") },
+            label = { Text(stringResource(R.string.history_search_label)) },
             singleLine = true,
             leadingIcon = {
                 Icon(
@@ -86,7 +88,7 @@ fun HistoryScreen(
                     IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "清空搜索"
+                            contentDescription = stringResource(R.string.history_clear_search)
                         )
                     }
                 }
@@ -106,7 +108,7 @@ fun HistoryScreen(
                 Tab(
                     selected = uiState.selectedFilter == filter,
                     onClick = { viewModel.selectFilter(filter) },
-                    text = { Text(filter.label) }
+                    text = { Text(stringResource(filter.labelRes)) }
                 )
             }
         }
@@ -176,12 +178,20 @@ private fun EmptyHistoryState(
                 tint = MaterialTheme.colorScheme.outline
             )
             Text(
-                text = if (hasSearchQuery) "没有找到匹配的对话" else "暂无对话记录",
+                text = if (hasSearchQuery) {
+                    stringResource(R.string.history_empty_search)
+                } else {
+                    stringResource(R.string.history_empty_all)
+                },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = if (hasSearchQuery) "尝试更换关键词或切换分类" else "生成、解释、调试或设计架构后会自动保存到这里",
+                text = if (hasSearchQuery) {
+                    stringResource(R.string.history_empty_search_hint)
+                } else {
+                    stringResource(R.string.history_empty_all_hint)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline
             )
@@ -208,7 +218,7 @@ private fun DeleteBackground() {
                 tint = MaterialTheme.colorScheme.onErrorContainer
             )
             Text(
-                text = "删除",
+                text = stringResource(R.string.history_delete),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
@@ -222,9 +232,7 @@ private fun ConversationHistoryCard(
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable(conversation.id) { mutableStateOf(false) }
-    val screenInfo = remember(conversation.screenType) {
-        conversation.screenInfo()
-    }
+    val screenInfo = remember(conversation.screenType) { conversation.screenInfo() }
     val timestamp = remember(conversation.createdAt) {
         conversation.createdAt.formatConversationTime()
     }
@@ -247,7 +255,7 @@ private fun ConversationHistoryCard(
             ) {
                 Icon(
                     imageVector = screenInfo.icon,
-                    contentDescription = screenInfo.label,
+                    contentDescription = stringResource(screenInfo.labelRes),
                     tint = MaterialTheme.colorScheme.primary
                 )
 
@@ -258,7 +266,7 @@ private fun ConversationHistoryCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = screenInfo.label,
+                            text = stringResource(screenInfo.labelRes),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -280,7 +288,7 @@ private fun ConversationHistoryCard(
 
                     conversation.language?.takeIf { it.isNotBlank() }?.let { language ->
                         Text(
-                            text = "语言/类型：$language",
+                            text = stringResource(R.string.history_language_type_format, language),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 6.dp)
@@ -292,11 +300,11 @@ private fun ConversationHistoryCard(
             AnimatedVisibility(visible = expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     HistoryTextSection(
-                        title = "用户输入",
+                        title = stringResource(R.string.history_user_input),
                         text = conversation.userMessage
                     )
                     HistoryTextSection(
-                        title = "AI 回复",
+                        title = stringResource(R.string.history_ai_response),
                         text = conversation.aiResponse
                     )
                 }
@@ -326,17 +334,17 @@ private fun HistoryTextSection(
 }
 
 private data class ScreenInfo(
-    val label: String,
+    val labelRes: Int,
     val icon: ImageVector
 )
 
 private fun Conversation.screenInfo(): ScreenInfo {
     return when (screenType) {
-        "code_gen" -> ScreenInfo("代码生成", Icons.Filled.Code)
-        "code_explain" -> ScreenInfo("代码解释", Icons.Filled.MenuBook)
-        "debug" -> ScreenInfo("调试", Icons.Filled.BugReport)
-        "architecture" -> ScreenInfo("架构", Icons.Filled.AccountTree)
-        else -> ScreenInfo("对话", Icons.Filled.History)
+        "code_gen" -> ScreenInfo(R.string.screen_label_code_generation, Icons.Filled.Code)
+        "code_explain" -> ScreenInfo(R.string.screen_label_code_explanation, Icons.Filled.MenuBook)
+        "debug" -> ScreenInfo(R.string.screen_label_debug, Icons.Filled.BugReport)
+        "architecture" -> ScreenInfo(R.string.screen_label_architecture, Icons.Filled.AccountTree)
+        else -> ScreenInfo(R.string.screen_label_conversation, Icons.Filled.History)
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.example.androiddevagent.ui.theme.DevAgentTheme
 
 @Composable
 internal fun StreamingMarkdownText(
@@ -29,12 +30,12 @@ internal fun StreamingMarkdownText(
                     text = segment.text.trimEnd(),
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = DevAgentTheme.colors.onCodeBlockContainer,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surface,
+                            color = DevAgentTheme.colors.codeBlockContainer,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .horizontalScroll(rememberScrollState())

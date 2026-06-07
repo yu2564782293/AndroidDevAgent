@@ -40,11 +40,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.R
 import com.example.androiddevagent.settings.LLMProvider
 import java.util.Locale
 
@@ -81,7 +83,7 @@ fun SettingsScreen(
         OutlinedTextField(
             value = uiState.config.apiKey,
             onValueChange = viewModel::onApiKeyChanged,
-            label = { Text("API Key") },
+            label = { Text(stringResource(R.string.settings_api_key_label)) },
             singleLine = true,
             visualTransformation = if (uiState.isApiKeyVisible) {
                 VisualTransformation.None
@@ -97,9 +99,9 @@ fun SettingsScreen(
                             Icons.Filled.Visibility
                         },
                         contentDescription = if (uiState.isApiKeyVisible) {
-                            "隐藏 API Key"
+                            stringResource(R.string.settings_hide_api_key)
                         } else {
-                            "显示 API Key"
+                            stringResource(R.string.settings_show_api_key)
                         }
                     )
                 }
@@ -110,7 +112,7 @@ fun SettingsScreen(
         OutlinedTextField(
             value = uiState.config.baseUrl,
             onValueChange = viewModel::onBaseUrlChanged,
-            label = { Text("Base URL") },
+            label = { Text(stringResource(R.string.settings_base_url_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -118,7 +120,7 @@ fun SettingsScreen(
         OutlinedTextField(
             value = uiState.config.modelName,
             onValueChange = viewModel::onModelNameChanged,
-            label = { Text("模型名称") },
+            label = { Text(stringResource(R.string.settings_model_name_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -134,7 +136,10 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("温度", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = stringResource(R.string.settings_temperature_label),
+                    style = MaterialTheme.typography.titleSmall
+                )
                 Text(
                     text = String.format(Locale.US, "%.1f", uiState.config.temperature),
                     style = MaterialTheme.typography.bodyMedium,
@@ -152,7 +157,7 @@ fun SettingsScreen(
         OutlinedTextField(
             value = uiState.maxTokensInput,
             onValueChange = viewModel::onMaxTokensChanged,
-            label = { Text("最大 Token 数") },
+            label = { Text(stringResource(R.string.settings_max_tokens_label)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
@@ -189,9 +194,9 @@ fun SettingsScreen(
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("测试中")
+                    Text(stringResource(R.string.btn_testing))
                 } else {
-                    Text("测试连接")
+                    Text(stringResource(R.string.btn_test_connection))
                 }
             }
 
@@ -207,9 +212,9 @@ fun SettingsScreen(
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("保存中")
+                    Text(stringResource(R.string.btn_saving))
                 } else {
-                    Text("保存")
+                    Text(stringResource(R.string.btn_save))
                 }
             }
         }
@@ -235,7 +240,7 @@ private fun ProviderDropdown(
             value = selectedProvider.displayName,
             onValueChange = {},
             readOnly = true,
-            label = { Text("服务商") },
+            label = { Text(stringResource(R.string.settings_provider_label)) },
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
@@ -270,7 +275,7 @@ private fun ModelSuggestions(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "常用模型",
+            text = stringResource(R.string.settings_common_models),
             style = MaterialTheme.typography.titleSmall
         )
         Row(

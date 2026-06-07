@@ -10,6 +10,8 @@ import com.example.androiddevagent.agent.LLMTimeoutException
 import com.example.androiddevagent.settings.LLMConfig
 import com.example.androiddevagent.settings.LLMProvider
 import com.example.androiddevagent.settings.SettingsRepository
+import com.example.androiddevagent.utils.InputValidator
+import com.example.androiddevagent.utils.errorOrNull
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.TimeoutCancellationException
@@ -73,15 +75,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onApiKeyChanged(apiKey: String) {
-        updateConfig { it.copy(apiKey = apiKey) }
+        updateConfig { it.copy(apiKey = InputValidator.sanitizeApiKey(apiKey)) }
     }
 
     fun onBaseUrlChanged(baseUrl: String) {
-        updateConfig { it.copy(baseUrl = baseUrl) }
+        updateConfig { it.copy(baseUrl = baseUrl.take(MAX_URL_INPUT_LENGTH)) }
     }
 
     fun onModelNameChanged(modelName: String) {
-        updateConfig { it.copy(modelName = modelName) }
+        updateConfig { it.copy(modelName = InputValidator.sanitizeModelName(modelName)) }
     }
 
     fun onTemperatureChanged(temperature: Float) {
@@ -182,24 +184,29 @@ class SettingsViewModel @Inject constructor(
             return null
         }
 
-        return config.copy(maxTokens = parsedMaxTokens)
-    }
+        val normalizedConfig = config.copy(
+            apiKey = InputValidator.sanitizeApiKey(config.apiKey),
+            baseUrl = InputValidator.sanitizeBaseUrl(config.baseUrl),
+            modelName = InputValidator.sanitizeModelName(config.modelName),
+            maxTokens = parsedMaxTokens
+        )
 
-    private fun SettingsUiState.validatedForRequest(): LLMConfig? {
-        val configForSave = validatedForSave() ?: return null
-        val error = when {
-            configForSave.apiKey.isBlank() -> "请填写 API Key"
-            configForSave.baseUrl.isBlank() -> "请填写 Base URL"
-            configForSave.modelName.isBlank() -> "请填写模型名称"
-            else -> null
-        }
+        val validationError = listOf(
+            InputValidator.validateApiKey(normalizedConfig.apiKey),
+            InputValidator.validateUrl(normalizedConfig.baseUrl),
+            InputValidator.validateModelName(normalizedConfig.modelName)
+        ).firstNotNullOfOrNull { it.errorOrNull() }
 
-        if (error != null) {
-            _uiState.update { it.copy(errorMessage = error, successMessage = null) }
+        if (validationError != null) {
+            _uiState.update { it.copy(errorMessage = validationError, successMessage = null) }
             return null
         }
 
-        return configForSave
+        return normalizedConfig
+    }
+
+    private fun SettingsUiState.validatedForRequest(): LLMConfig? {
+        return validatedForSave()
     }
 
     private fun Throwable.toUserMessage(): String {
@@ -215,6 +222,7 @@ class SettingsViewModel @Inject constructor(
 
     private companion object {
         const val MAX_TOKEN_INPUT_LENGTH = 7
+        const val MAX_URL_INPUT_LENGTH = 512
     }
 }
 

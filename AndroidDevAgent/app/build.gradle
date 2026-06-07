@@ -5,6 +5,32 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
+def releaseSigningProperties = new Properties()
+def releaseSigningPropertiesFile = rootProject.file("release-signing.properties")
+if (releaseSigningPropertiesFile.exists()) {
+    releaseSigningPropertiesFile.withInputStream { releaseSigningProperties.load(it) }
+}
+
+def releaseProperty = { name ->
+    (project.findProperty(name)
+            ?: releaseSigningProperties.getProperty(name)
+            ?: System.getenv("ANDROIDDEVAGENT_${name}")
+            ?: "").toString()
+}
+
+def releaseStoreFilePath = releaseProperty("RELEASE_STORE_FILE")
+def releaseStorePassword = releaseProperty("RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = releaseProperty("RELEASE_KEY_ALIAS")
+def releaseKeyPassword = releaseProperty("RELEASE_KEY_PASSWORD")
+def versionCodeValue = (project.findProperty("VERSION_CODE")?.toString() ?: "4").toInteger()
+def versionNameValue = project.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
+def hasReleaseSigningConfig = [
+        releaseStoreFilePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+].every { it.trim().length() > 0 }
+
 android {
     namespace 'com.example.androiddevagent'
     compileSdk 34
@@ -13,8 +39,8 @@ android {
         applicationId "com.example.androiddevagent"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode versionCodeValue
+        versionName versionNameValue
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -26,10 +52,34 @@ android {
         }
     }
 
-    buildTypes {
+    signingConfigs {
         release {
+            if (hasReleaseSigningConfig) {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            debuggable true
             minifyEnabled false
+            shrinkResources false
+        }
+
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     
