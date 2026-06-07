@@ -1,42 +1,56 @@
 package com.example.androiddevagent.agent
 
+import com.example.androiddevagent.settings.LLMConfig
+import com.example.androiddevagent.settings.SettingsRepository
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+
 /**
  * 大模型提供者接口
  * 定义与大模型交互的标准接口
  */
 interface LLMProvider {
-    
+
     /**
      * 生成文本补全
      * @param prompt 提示词
      * @return 模型响应
      */
     suspend fun generateCompletion(prompt: String): String
-    
+
     /**
      * 流式生成文本补全
      * @param prompt 提示词
-     * @return 流式响应的Sequence
+     * @return 流式响应
      */
-    fun streamCompletion(prompt: String): Sequence<String>
-    
+    fun streamCompletion(prompt: String): Flow<String>
+
     /**
      * 获取模型信息
      * @return 模型信息
      */
     fun getModelInfo(): ModelInfo
-    
+
     /**
      * 检查模型是否可用
      * @return 是否可用
      */
     suspend fun isAvailable(): Boolean
-    
+
     /**
      * 设置模型参数
      * @param parameters 参数配置
      */
     fun setParameters(parameters: ModelParameters)
+
+    /**
+     * 从设置仓库加载最新配置
+     */
+    suspend fun configure()
 }
 
 /**
@@ -63,118 +77,90 @@ data class ModelParameters(
 
 /**
  * LLM提供者实现类
- * 支持多种大模型服务
+ * 使用用户自带 API Key 直接访问 OpenAI-compatible Chat Completions 接口。
  */
-class LLMProviderImpl : LLMProvider {
-    
-    private var apiKey: String = ""
-    private var baseUrl: String = ""
-    private var modelName: String = "gpt-3.5-turbo"
+@Singleton
+class LLMProviderImpl @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val llmClient: LLMClient
+) : LLMProvider {
+
+    @Volatile
+    private var currentConfig: LLMConfig = LLMConfig.DEFAULT
+
+    @Volatile
     private var parameters: ModelParameters = ModelParameters()
-    
-    // 配置API密钥
-    fun configure(apiKey: String, baseUrl: String, modelName: String) {
-        this.apiKey = apiKey
-        this.baseUrl = baseUrl
-        this.modelName = modelName
+
+    override suspend fun configure() {
+        currentConfig = settingsRepository.configFlow.first()
+        parameters = ModelParameters(
+            temperature = currentConfig.temperature,
+            topP = currentConfig.topP,
+            maxTokens = currentConfig.maxTokens
+        )
     }
-    
+
     override suspend fun generateCompletion(prompt: String): String {
-        // 这里应该实现实际的API调用
-        // 简化版本：返回模拟响应
-        return simulateResponse(prompt)
+        configure()
+        val responseBuilder = StringBuilder()
+        streamCompletion(prompt).collect { token ->
+            responseBuilder.append(token)
+        }
+        return responseBuilder.toString()
     }
-    
-    override fun streamCompletion(prompt: String): Sequence<String> = sequence {
-        // 模拟流式响应
-        val response = simulateResponse(prompt)
-        val words = response.split(" ")
-        
-        for (word in words) {
-            yield("$word ")
-            // 模拟网络延迟
-            Thread.sleep(100)
+
+    override fun streamCompletion(prompt: String): Flow<String> {
+        return flow {
+            configure()
+            val config = currentConfig.withParameters(parameters)
+            llmClient.streamChatCompletion(
+                config = config,
+                messages = listOf(
+                    LLMMessage(
+                        role = "system",
+                        content = "你是 AndroidDevAgent，专注帮助 Android 开发者进行代码生成、代码解释、调试和架构设计。"
+                    ),
+                    LLMMessage(role = "user", content = prompt)
+                )
+            ).collect { token ->
+                emit(token)
+            }
         }
     }
-    
+
     override fun getModelInfo(): ModelInfo {
+        val config = currentConfig
         return ModelInfo(
-            name = modelName,
-            version = "1.0",
-            provider = "OpenAI",
+            name = config.modelName,
+            version = "OpenAI-compatible chat completions",
+            provider = config.provider.displayName,
             capabilities = listOf(
                 "代码生成",
                 "代码解释",
                 "调试建议",
-                "架构设计"
+                "架构设计",
+                "流式输出"
             ),
             maxTokens = parameters.maxTokens
         )
     }
-    
+
     override suspend fun isAvailable(): Boolean {
-        // 检查API密钥是否配置
-        return apiKey.isNotEmpty()
+        currentConfig = settingsRepository.configFlow.first()
+        return currentConfig.apiKey.isNotBlank() &&
+            currentConfig.baseUrl.isNotBlank() &&
+            currentConfig.modelName.isNotBlank()
     }
-    
+
     override fun setParameters(parameters: ModelParameters) {
         this.parameters = parameters
     }
-    
-    private fun simulateResponse(prompt: String): String {
-        // 根据提示词模拟不同的响应
-        return when {
-            prompt.contains("代码生成") || prompt.contains("generate code") -> {
-                """
-                // 根据需求生成的代码示例
-                class MainActivity : AppCompatActivity() {
-                    override fun onCreate(savedInstanceState: Bundle?) {
-                        super.onCreate(savedInstanceState)
-                        setContentView(R.layout.activity_main)
-                        
-                        // 初始化UI组件
-                        initViews()
-                        setupListeners()
-                    }
-                    
-                    private fun initViews() {
-                        // 初始化视图
-                    }
-                    
-                    private fun setupListeners() {
-                        // 设置监听器
-                    }
-                }
-                """.trimIndent()
-            }
-            
-            prompt.contains("解释") || prompt.contains("explain") -> {
-                "这段代码是一个Android Activity的基本结构。它继承自AppCompatActivity，" +
-                "并在onCreate方法中初始化界面和设置事件监听器。" +
-                "这是Android应用开发的标准模式。"
-            }
-            
-            prompt.contains("调试") || prompt.contains("debug") -> {
-                "根据错误描述，建议检查以下几点：\n" +
-                "1. 确保所有UI组件都已正确初始化\n" +
-                "2. 检查布局文件是否存在且正确引用\n" +
-                "3. 验证权限是否已正确申请\n" +
-                "4. 查看Logcat中的详细错误日志"
-            }
-            
-            prompt.contains("架构") || prompt.contains("architecture") -> {
-                "推荐使用MVVM架构模式：\n" +
-                "1. View层：使用Jetpack Compose构建UI\n" +
-                "2. ViewModel层：管理UI状态和业务逻辑\n" +
-                "3. Model层：数据仓库和数据源\n" +
-                "4. 使用Hilt进行依赖注入\n" +
-                "5. 采用Repository模式管理数据"
-            }
-            
-            else -> {
-                "我是Android开发助手，可以为您提供代码生成、解释、调试和架构设计等帮助。" +
-                "请告诉我您需要什么具体的帮助。"
-            }
-        }
+
+    private fun LLMConfig.withParameters(parameters: ModelParameters): LLMConfig {
+        return copy(
+            temperature = parameters.temperature,
+            topP = parameters.topP,
+            maxTokens = parameters.maxTokens
+        )
     }
 }

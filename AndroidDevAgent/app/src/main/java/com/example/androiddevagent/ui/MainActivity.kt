@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.androiddevagent.ui.screens.CodeGenerationScreen
 import com.example.androiddevagent.ui.screens.HomeScreen
+import com.example.androiddevagent.ui.screens.SettingsScreen
 import com.example.androiddevagent.ui.screens.SimpleFeatureScreen
 import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -141,6 +143,9 @@ fun AndroidDevAgentApp(
                         actionText = "生成方案"
                     )
                 }
+                composable(AppDestination.Settings.route) {
+                    SettingsScreen()
+                }
             }
         }
     }
@@ -166,7 +171,8 @@ enum class AppDestination(
     CodeGeneration("code_generation", "智能代码生成", "生成", Icons.Filled.Code),
     CodeExplanation("code_explanation", "代码解释", "解释", Icons.Filled.MenuBook),
     Debugging("debugging", "调试助手", "调试", Icons.Filled.BugReport),
-    Architecture("architecture", "架构设计", "架构", Icons.Filled.AccountTree)
+    Architecture("architecture", "架构设计", "架构", Icons.Filled.AccountTree),
+    Settings("settings", "设置", "设置", Icons.Filled.Settings)
 }
 
 @Preview(showBackground = true)

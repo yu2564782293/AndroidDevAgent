@@ -29,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -56,6 +58,7 @@ fun CodeGenerationScreen(
     var userInput by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf(ProgrammingLanguage.KOTLIN) }
     val uiState by viewModel.uiState.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
 
     val languages = listOf(
         ProgrammingLanguage.KOTLIN,
@@ -175,7 +178,9 @@ fun CodeGenerationScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = { /* 复制到剪贴板 */ },
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(uiState.generatedCode))
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("复制代码")
