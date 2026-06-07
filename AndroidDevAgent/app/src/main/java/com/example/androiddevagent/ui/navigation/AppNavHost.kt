@@ -8,7 +8,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.androiddevagent.ui.screens.AgentChatScreen
+import com.example.androiddevagent.ui.screens.ArchitectureScreen
 import com.example.androiddevagent.ui.screens.CodeEditorScreen
+import com.example.androiddevagent.ui.screens.CodeExplanationScreen
+import com.example.androiddevagent.ui.screens.DebugScreen
+import com.example.androiddevagent.ui.screens.HistoryScreen
 import com.example.androiddevagent.ui.screens.MemoryScreen
 import com.example.androiddevagent.ui.screens.NewProjectScreen
 import com.example.androiddevagent.ui.screens.ProjectFilesScreen
@@ -25,6 +29,18 @@ fun AppNavHost(navController: NavHostController, drawerState: DrawerState? = nul
     ) {
         composable(Screen.AgentChat.route) {
             AgentChatScreen(drawerState = drawerState)
+        }
+        composable(Screen.CodeExplanation.route) {
+            CodeExplanationScreen()
+        }
+        composable(Screen.Debug.route) {
+            DebugScreen()
+        }
+        composable(Screen.Architecture.route) {
+            ArchitectureScreen()
+        }
+        composable(Screen.ConversationHistory.route) {
+            HistoryScreen()
         }
         composable(Screen.ProjectFiles.route) {
             ProjectFilesScreen(
