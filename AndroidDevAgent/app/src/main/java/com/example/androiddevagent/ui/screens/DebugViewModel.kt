@@ -3,6 +3,8 @@ package com.example.androiddevagent.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
+import com.example.androiddevagent.data.dao.ConversationDao
+import com.example.androiddevagent.data.entity.Conversation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -16,7 +18,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
-    private val llmProvider: LLMProvider
+    private val llmProvider: LLMProvider,
+    private val conversationDao: ConversationDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DebugUiState())
@@ -39,15 +42,23 @@ class DebugViewModel @Inject constructor(
             )
 
             try {
+                val responseBuilder = StringBuilder()
+
                 llmProvider.streamCompletion(
                     buildDebugPrompt(trimmedErrorInfo)
                 ).collect { token ->
+                    responseBuilder.append(token)
                     _uiState.update {
                         it.copy(
-                            analysis = it.analysis + token,
+                            analysis = responseBuilder.toString(),
                             errorMessage = null
                         )
                     }
+                }
+
+                val response = responseBuilder.toString()
+                if (response.isNotBlank()) {
+                    saveConversation(trimmedErrorInfo, response)
                 }
 
                 _uiState.update {
@@ -67,6 +78,21 @@ class DebugViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun saveConversation(
+        errorInfo: String,
+        response: String
+    ) {
+        runCatching {
+            conversationDao.insert(
+                Conversation(
+                    screenType = "debug",
+                    userMessage = errorInfo,
+                    aiResponse = response
+                )
+            )
         }
     }
 

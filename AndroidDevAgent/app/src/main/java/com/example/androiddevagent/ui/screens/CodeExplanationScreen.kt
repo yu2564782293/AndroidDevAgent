@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.androiddevagent.models.ProgrammingLanguage
+import com.example.androiddevagent.ui.components.ErrorCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,10 +103,12 @@ fun CodeExplanationScreen(
 
         uiState.errorMessage?.let { error ->
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+            ErrorCard(
+                message = error,
+                onRetry = {
+                    viewModel.explainCode(codeInput, selectedLanguage)
+                },
+                retryEnabled = codeInput.isNotBlank() && !uiState.isLoading
             )
         }
 

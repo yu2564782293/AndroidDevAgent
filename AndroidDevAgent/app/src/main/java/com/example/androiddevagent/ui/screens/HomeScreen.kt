@@ -3,11 +3,13 @@ package com.example.androiddevagent.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -24,16 +26,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.BuildConfig
+import com.example.androiddevagent.data.entity.Conversation
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToCodeGeneration: () -> Unit = {},
     onNavigateToCodeExplanation: () -> Unit = {},
     onNavigateToDebugging: () -> Unit = {},
@@ -42,34 +55,33 @@ fun HomeScreen(
     val features = listOf(
         FeatureItem(
             title = "代码生成",
-            description = "根据需求描述生成完整的安卓代码",
+            description = "把功能需求转成 Kotlin、Java 或脚本代码，并附带实现说明。",
             icon = Icons.Filled.Code,
             onClick = onNavigateToCodeGeneration
         ),
         FeatureItem(
             title = "代码解释",
-            description = "分析和解释现有代码的功能",
+            description = "拆解代码执行流程、设计模式、风险点和优化方向。",
             icon = Icons.Filled.MenuBook,
             onClick = onNavigateToCodeExplanation
         ),
         FeatureItem(
             title = "调试助手",
-            description = "帮助定位和解决开发问题",
+            description = "分析崩溃堆栈、编译错误和 Logcat，给出修复步骤。",
             icon = Icons.Filled.BugReport,
             onClick = onNavigateToDebugging
         ),
         FeatureItem(
             title = "架构设计",
-            description = "提供项目架构设计建议",
+            description = "根据项目目标规划模块边界、数据流、技术栈和落地节奏。",
             icon = Icons.Filled.AccountTree,
             onClick = onNavigateToArchitecture
         )
     )
+    val recentConversations by viewModel.recentConversations.collectAsState()
 
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 156.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(16.dp),
         modifier = modifier.fillMaxSize()
     ) {
@@ -77,8 +89,28 @@ fun HomeScreen(
             WelcomeCard()
         }
 
-        items(features) { feature ->
-            FeatureCard(feature = feature)
+        item {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 156.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(352.dp),
+                userScrollEnabled = false
+            ) {
+                items(features) { feature ->
+                    FeatureCard(feature = feature)
+                }
+            }
+        }
+
+        item {
+            RecentConversationsSection(conversations = recentConversations)
+        }
+
+        item {
+            AppVersionFooter()
         }
     }
 }
@@ -107,7 +139,7 @@ private fun WelcomeCard() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "通过底部导航快速切换功能，也可以从首页卡片进入常用工作流。",
+                text = "通过底部导航快速切换功能，也可以从首页卡片进入常用工作流。完成的 AI 对话会自动沉淀到历史记录。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -157,6 +189,127 @@ fun FeatureCard(feature: FeatureItem) {
             )
         }
     }
+}
+
+@Composable
+private fun RecentConversationsSection(
+    conversations: List<Conversation>,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "最近对话",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        if (conversations.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Text(
+                    text = "暂无对话记录，完成一次代码生成、解释、调试或架构设计后会显示在这里。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        } else {
+            conversations.forEach { conversation ->
+                RecentConversationCard(conversation = conversation)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentConversationCard(
+    conversation: Conversation,
+    modifier: Modifier = Modifier
+) {
+    val screenLabel = remember(conversation.screenType) {
+        conversation.screenType.toHomeScreenLabel()
+    }
+    val timestamp = remember(conversation.createdAt) {
+        conversation.createdAt.toHomeTimeText()
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = screenLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = timestamp,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+
+            Text(
+                text = conversation.userMessage.homePreview(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppVersionFooter() {
+    Text(
+        text = "Android Dev Agent v${BuildConfig.VERSION_NAME}",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.outline,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    )
+}
+
+private fun String.toHomeScreenLabel(): String {
+    return when (this) {
+        "code_gen" -> "代码生成"
+        "code_explain" -> "代码解释"
+        "debug" -> "调试"
+        "architecture" -> "架构"
+        else -> "对话"
+    }
+}
+
+private fun String.homePreview(): String {
+    return trim()
+        .replace(Regex("\\s+"), " ")
+        .ifBlank { "无输入内容" }
+}
+
+private fun Long.toHomeTimeText(): String {
+    return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
 }
 
 data class FeatureItem(

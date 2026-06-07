@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.ui.components.ErrorCard
 
 @Composable
 fun DebugScreen(
@@ -87,10 +88,12 @@ fun DebugScreen(
 
         uiState.errorMessage?.let { error ->
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+            ErrorCard(
+                message = error,
+                onRetry = {
+                    viewModel.analyzeError(errorInput)
+                },
+                retryEnabled = errorInput.isNotBlank() && !uiState.isLoading
             )
         }
 

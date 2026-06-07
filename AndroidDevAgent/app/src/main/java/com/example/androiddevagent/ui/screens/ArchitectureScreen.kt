@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.androiddevagent.ui.components.ErrorCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,10 +105,15 @@ fun ArchitectureScreen(
 
         uiState.errorMessage?.let { error ->
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+            ErrorCard(
+                message = error,
+                onRetry = {
+                    viewModel.designArchitecture(
+                        requirements = requirementsInput,
+                        projectType = selectedProjectType.displayName
+                    )
+                },
+                retryEnabled = requirementsInput.isNotBlank() && !uiState.isLoading
             )
         }
 

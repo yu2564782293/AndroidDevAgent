@@ -36,6 +36,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
+import com.example.androiddevagent.data.dao.ConversationDao
+import com.example.androiddevagent.data.entity.Conversation
+import com.example.androiddevagent.ui.components.ErrorCard
 import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -134,10 +137,12 @@ fun CodeGenerationScreen(
 
         uiState.error?.let { error ->
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+            ErrorCard(
+                message = error,
+                onRetry = {
+                    viewModel.generateCode(userInput, selectedLanguage)
+                },
+                retryEnabled = userInput.isNotBlank() && !uiState.isLoading
             )
         }
 
@@ -201,7 +206,8 @@ fun CodeGenerationScreen(
 
 @HiltViewModel
 class CodeGenerationViewModel @Inject constructor(
-    private val llmProvider: LLMProvider
+    private val llmProvider: LLMProvider,
+    private val conversationDao: ConversationDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodeGenerationUiState())
@@ -223,15 +229,23 @@ class CodeGenerationViewModel @Inject constructor(
             )
 
             try {
+                val responseBuilder = StringBuilder()
+
                 llmProvider.streamCompletion(
                     buildCodeGenerationPrompt(trimmedDescription, language)
                 ).collect { token ->
+                    responseBuilder.append(token)
                     _uiState.update {
                         it.copy(
-                            generatedCode = it.generatedCode + token,
+                            generatedCode = responseBuilder.toString(),
                             error = null
                         )
                     }
+                }
+
+                val response = responseBuilder.toString()
+                if (response.isNotBlank()) {
+                    saveConversation(trimmedDescription, response, language)
                 }
 
                 _uiState.update {
@@ -247,6 +261,23 @@ class CodeGenerationViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun saveConversation(
+        description: String,
+        response: String,
+        language: ProgrammingLanguage
+    ) {
+        runCatching {
+            conversationDao.insert(
+                Conversation(
+                    screenType = "code_gen",
+                    userMessage = description,
+                    aiResponse = response,
+                    language = language.displayName
+                )
+            )
         }
     }
 

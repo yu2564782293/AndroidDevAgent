@@ -3,6 +3,8 @@ package com.example.androiddevagent.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
+import com.example.androiddevagent.data.dao.ConversationDao
+import com.example.androiddevagent.data.entity.Conversation
 import com.example.androiddevagent.models.ProgrammingLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,7 +19,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class CodeExplanationViewModel @Inject constructor(
-    private val llmProvider: LLMProvider
+    private val llmProvider: LLMProvider,
+    private val conversationDao: ConversationDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CodeExplanationUiState())
@@ -40,15 +43,23 @@ class CodeExplanationViewModel @Inject constructor(
             )
 
             try {
+                val responseBuilder = StringBuilder()
+
                 llmProvider.streamCompletion(
                     buildCodeExplanationPrompt(trimmedCode, language)
                 ).collect { token ->
+                    responseBuilder.append(token)
                     _uiState.update {
                         it.copy(
-                            explanation = it.explanation + token,
+                            explanation = responseBuilder.toString(),
                             errorMessage = null
                         )
                     }
+                }
+
+                val response = responseBuilder.toString()
+                if (response.isNotBlank()) {
+                    saveConversation(trimmedCode, response, language)
                 }
 
                 _uiState.update {
@@ -68,6 +79,23 @@ class CodeExplanationViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun saveConversation(
+        code: String,
+        response: String,
+        language: ProgrammingLanguage
+    ) {
+        runCatching {
+            conversationDao.insert(
+                Conversation(
+                    screenType = "code_explain",
+                    userMessage = code,
+                    aiResponse = response,
+                    language = language.displayName
+                )
+            )
         }
     }
 

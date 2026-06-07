@@ -3,6 +3,8 @@ package com.example.androiddevagent.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
+import com.example.androiddevagent.data.dao.ConversationDao
+import com.example.androiddevagent.data.entity.Conversation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -16,7 +18,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class ArchitectureViewModel @Inject constructor(
-    private val llmProvider: LLMProvider
+    private val llmProvider: LLMProvider,
+    private val conversationDao: ConversationDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ArchitectureUiState())
@@ -39,15 +42,23 @@ class ArchitectureViewModel @Inject constructor(
             )
 
             try {
+                val responseBuilder = StringBuilder()
+
                 llmProvider.streamCompletion(
                     buildArchitecturePrompt(trimmedRequirements, projectType)
                 ).collect { token ->
+                    responseBuilder.append(token)
                     _uiState.update {
                         it.copy(
-                            proposal = it.proposal + token,
+                            proposal = responseBuilder.toString(),
                             errorMessage = null
                         )
                     }
+                }
+
+                val response = responseBuilder.toString()
+                if (response.isNotBlank()) {
+                    saveConversation(trimmedRequirements, response, projectType)
                 }
 
                 _uiState.update {
@@ -67,6 +78,23 @@ class ArchitectureViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun saveConversation(
+        requirements: String,
+        response: String,
+        projectType: String
+    ) {
+        runCatching {
+            conversationDao.insert(
+                Conversation(
+                    screenType = "architecture",
+                    userMessage = "项目类型：$projectType\n\n$requirements",
+                    aiResponse = response,
+                    language = projectType
+                )
+            )
         }
     }
 

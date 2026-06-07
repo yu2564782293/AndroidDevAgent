@@ -10,6 +10,7 @@ import com.example.androiddevagent.agent.LLMClient
 import com.example.androiddevagent.agent.LLMProvider
 import com.example.androiddevagent.agent.LLMProviderImpl
 import com.example.androiddevagent.data.ProjectDatabase
+import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
 import dagger.Module
@@ -78,5 +79,11 @@ object AppModule {
     @Singleton
     fun provideProjectDao(database: ProjectDatabase): ProjectDao {
         return database.projectDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationDao(database: ProjectDatabase): ConversationDao {
+        return database.conversationDao()
     }
 }

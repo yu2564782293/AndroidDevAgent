@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Settings
@@ -38,6 +39,7 @@ import com.example.androiddevagent.ui.screens.ArchitectureScreen
 import com.example.androiddevagent.ui.screens.CodeGenerationScreen
 import com.example.androiddevagent.ui.screens.CodeExplanationScreen
 import com.example.androiddevagent.ui.screens.DebugScreen
+import com.example.androiddevagent.ui.screens.HistoryScreen
 import com.example.androiddevagent.ui.screens.HomeScreen
 import com.example.androiddevagent.ui.screens.SettingsScreen
 import com.example.androiddevagent.ui.theme.AndroidDevAgentTheme
@@ -133,6 +135,9 @@ fun AndroidDevAgentApp(
                 composable(AppDestination.Architecture.route) {
                     ArchitectureScreen()
                 }
+                composable(AppDestination.History.route) {
+                    HistoryScreen()
+                }
                 composable(AppDestination.Settings.route) {
                     SettingsScreen()
                 }
@@ -162,6 +167,7 @@ enum class AppDestination(
     CodeExplanation("code_explanation", "代码解释", "解释", Icons.Filled.MenuBook),
     Debugging("debugging", "调试助手", "调试", Icons.Filled.BugReport),
     Architecture("architecture", "架构设计", "架构", Icons.Filled.AccountTree),
+    History("history", "对话历史", "历史", Icons.Filled.History),
     Settings("settings", "设置", "设置", Icons.Filled.Settings)
 }
 
