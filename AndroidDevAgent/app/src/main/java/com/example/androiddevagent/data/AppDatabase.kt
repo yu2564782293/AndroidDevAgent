@@ -7,8 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.androiddevagent.agent.memory.SmartMemoryEntity
 import com.example.androiddevagent.agent.memory.SmartMemoryDao
-import com.example.androiddevagent.data.dao.ConversationDao
-import com.example.androiddevagent.data.entity.Conversation
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,17 +15,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Database(
-    entities = [
-        TaskRecordEntity::class,
-        ProjectEntity::class,
-        TokenUsageEntity::class,
-        ChatMessageEntity::class,
-        MemoryEntity::class,
-        SkillEntity::class,
-        SmartMemoryEntity::class,
-        Conversation::class
-    ],
-    version = 8,
+    entities = [TaskRecordEntity::class, ProjectEntity::class, TokenUsageEntity::class, ChatMessageEntity::class, MemoryEntity::class, SkillEntity::class, SmartMemoryEntity::class],
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -39,7 +28,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun memoryDao(): MemoryDao
     abstract fun skillDao(): SkillDao
     abstract fun smartMemoryDao(): SmartMemoryDao
-    abstract fun conversationDao(): ConversationDao
 }
 
 @Module
@@ -55,7 +43,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "derek_ai_db"
-        ).fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5, 6, 7).build()
+        ).fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5, 6).build()
     }
 
     @Provides
@@ -91,10 +79,5 @@ object DatabaseModule {
     @Provides
     fun provideSmartMemoryDao(database: AppDatabase): SmartMemoryDao {
         return database.smartMemoryDao()
-    }
-
-    @Provides
-    fun provideConversationDao(database: AppDatabase): ConversationDao {
-        return database.conversationDao()
     }
 }

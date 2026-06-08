@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <exclude
-        domain="sharedpref"
-        path="llm_settings.preferences_pb" />
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="device.xml" />
 </full-backup-content>

@@ -8,22 +8,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Chat
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -58,13 +50,9 @@ fun SidebarNavigation(
 ) {
     val navItems = listOf(
         SidebarNavItem(Screen.AgentChat, "对话", Icons.Filled.Chat, Icons.Outlined.Chat),
-        SidebarNavItem(Screen.CodeExplanation, "代码解释", Icons.Filled.MenuBook, Icons.Outlined.MenuBook),
-        SidebarNavItem(Screen.Debug, "调试", Icons.Filled.BugReport, Icons.Outlined.BugReport),
-        SidebarNavItem(Screen.Architecture, "架构", Icons.Filled.AccountTree, Icons.Outlined.AccountTree),
         SidebarNavItem(Screen.Skills, "技能", Icons.Filled.Extension, Icons.Outlined.Extension),
         SidebarNavItem(Screen.Memory, "智能记忆", Icons.Filled.Psychology, Icons.Outlined.Psychology),
         SidebarNavItem(Screen.TaskHistory, "历史", Icons.Filled.History, Icons.Outlined.History),
-        SidebarNavItem(Screen.ConversationHistory, "AI记录", Icons.Filled.Code, Icons.Outlined.Code),
         SidebarNavItem(Screen.Settings, "设置", Icons.Filled.Settings, Icons.Outlined.Settings)
     )
 

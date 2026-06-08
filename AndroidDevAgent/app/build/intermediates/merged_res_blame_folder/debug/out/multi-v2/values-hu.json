@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.androiddevagent.app-mergeDebugResources-61:/values-hu/values-hu.xml",
+            "outputFile": "com.example.androiddevagent.app-mergeDebugResources-2:/values-hu/values-hu.xml",
             "map": [
                 {
                     "source": "/root/.gradle/caches/transforms-3/a7dcbf43303f2676a037915c7ab7bf2d/transformed/jetified-ui-release/res/values-hu/values-hu.xml",
