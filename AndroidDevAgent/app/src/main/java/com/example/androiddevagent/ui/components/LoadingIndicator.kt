@@ -51,6 +51,7 @@ fun LoadingIndicator(
         modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = DevAgentTheme.colors.aiResponseContainer
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
         Row(
@@ -71,6 +72,7 @@ fun LoadingIndicator(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = DevAgentTheme.colors.onAiResponseContainer
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }

@@ -31,11 +31,13 @@ internal fun StreamingMarkdownText(
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                     color = DevAgentTheme.colors.onCodeBlockContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp)
                         .background(
                             color = DevAgentTheme.colors.codeBlockContainer,
+                            color = MaterialTheme.colorScheme.surface,
                             shape = RoundedCornerShape(6.dp)
                         )
                         .horizontalScroll(rememberScrollState())

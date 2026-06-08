@@ -1,8 +1,14 @@
 package com.example.androiddevagent.agent.llm
 
+import com.example.androiddevagent.agent.LLMClient
+import com.example.androiddevagent.agent.LLMMessage
+import com.example.androiddevagent.data.SecureStorage
+import com.example.androiddevagent.settings.LLMConfig
+import com.example.androiddevagent.settings.LLMProvider as SettingsLLMProvider
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -13,7 +19,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class LlmProvider @Inject constructor() {
+class LlmProvider @Inject constructor(
+    private val secureStorage: SecureStorage,
+    private val llmClient: LLMClient
+) {
 
     private var apiKey: String = ""
     private var baseUrl: String = LlmConstants.DEFAULT_BASE_URL
@@ -49,15 +58,33 @@ class LlmProvider @Inject constructor() {
         return sanitized
     }
 
-    fun isConfigured(): Boolean = apiKey.isNotEmpty()
+    fun isConfigured(): Boolean = apiKey.isNotEmpty() || loadStoredApiKey().isNotEmpty()
 
-    fun getConfig(): Triple<String, String, String> = Triple(apiKey, baseUrl, modelName)
+    fun getConfig(): Triple<String, String, String> {
+        ensureConfiguredFromStorage()
+        return Triple(apiKey, baseUrl, modelName)
+    }
+
+    fun streamCompletion(prompt: String): Flow<String> {
+        val config = currentStreamingConfig()
+        return llmClient.streamChatCompletion(
+            config = config,
+            messages = listOf(
+                LLMMessage(
+                    role = "system",
+                    content = "你是 AndroidDevAgent，专注帮助 Android 开发者进行代码解释、调试和架构设计。"
+                ),
+                LLMMessage(role = "user", content = prompt)
+            )
+        )
+    }
 
     suspend fun chatWithTools(
         messages: List<ChatCompletionRequest.Message>,
         tools: List<ChatCompletionRequest.ToolDefinition>
     ): ChatCompletionResponse {
         return withContext(Dispatchers.IO) {
+            ensureConfiguredFromStorage()
             val request = ChatCompletionRequest(
                 model = modelName,
                 messages = messages,
@@ -97,5 +124,50 @@ class LlmProvider @Inject constructor() {
             .build()
 
         return retrofit.create(LlmApi::class.java)
+    }
+
+    private fun currentStreamingConfig(): LLMConfig {
+        ensureConfiguredFromStorage()
+        val providerId = secureStorage.getActiveProvider()
+        return LLMConfig(
+            providerName = providerId.toSettingsProvider().name,
+            apiKey = apiKey,
+            baseUrl = baseUrl.trimEnd('/'),
+            modelName = modelName,
+            temperature = 0.7,
+            topP = 0.9,
+            maxTokens = 2048
+        )
+    }
+
+    private fun ensureConfiguredFromStorage() {
+        if (apiKey.isNotEmpty()) return
+
+        val providerId = secureStorage.getActiveProvider()
+        val storedApiKey = secureStorage.getApiKey(providerId)
+        if (storedApiKey.isEmpty()) return
+
+        val providerConfig = LlmProviderConfig.BUILT_IN_PROVIDERS.find { it.id == providerId }
+        val (storedBaseUrl, storedModelName) = secureStorage.getProviderConfig(providerId)
+        configure(
+            apiKey = storedApiKey,
+            baseUrl = storedBaseUrl.ifBlank { providerConfig?.baseUrl ?: LlmConstants.DEFAULT_BASE_URL },
+            modelName = storedModelName.ifBlank { providerConfig?.defaultModel ?: LlmConstants.DEFAULT_MODEL }
+        )
+    }
+
+    private fun loadStoredApiKey(): String {
+        return secureStorage.getApiKey(secureStorage.getActiveProvider())
+    }
+
+    private fun String.toSettingsProvider(): SettingsLLMProvider {
+        return when (this) {
+            "openai" -> SettingsLLMProvider.OPENAI
+            "deepseek" -> SettingsLLMProvider.DEEPSEEQ
+            "qwen" -> SettingsLLMProvider.QWEN
+            "moonshot" -> SettingsLLMProvider.KIMI
+            "zhipu" -> SettingsLLMProvider.CHATGLM
+            else -> SettingsLLMProvider.CUSTOM
+        }
     }
 }

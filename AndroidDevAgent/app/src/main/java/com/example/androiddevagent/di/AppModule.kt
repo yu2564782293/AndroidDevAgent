@@ -13,6 +13,7 @@ import com.example.androiddevagent.data.ProjectDatabase
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
+import com.example.androiddevagent.agent.LLMClient
 import com.example.androiddevagent.utils.RateLimiter
 import dagger.Module
 import dagger.Provides
@@ -62,6 +63,30 @@ object AppModule {
         llmClient: LLMClient
     ): LLMProvider {
         return LLMProviderImpl(settingsRepository, llmClient)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRateLimiter(): RateLimiter {
+        return RateLimiter()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideLLMClient(okHttpClient: OkHttpClient): LLMClient {
+        return LLMClient(okHttpClient)
     }
 
     @Provides
