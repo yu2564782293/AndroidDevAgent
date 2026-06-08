@@ -3,7 +3,6 @@ package com.example.androiddevagent.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androiddevagent.agent.LLMProvider
-import com.example.androiddevagent.agent.llm.LlmProvider
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.entity.Conversation
 import com.example.androiddevagent.models.ProgrammingLanguage
@@ -24,7 +23,6 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class CodeExplanationViewModel @Inject constructor(
     private val llmProvider: LLMProvider,
-    private val llmProvider: LlmProvider,
     private val conversationDao: ConversationDao,
     private val rateLimiter: RateLimiter
 ) : ViewModel() {

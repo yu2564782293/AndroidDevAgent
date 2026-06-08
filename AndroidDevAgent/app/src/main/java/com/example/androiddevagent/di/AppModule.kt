@@ -13,7 +13,6 @@ import com.example.androiddevagent.data.ProjectDatabase
 import com.example.androiddevagent.data.dao.ConversationDao
 import com.example.androiddevagent.data.dao.ProjectDao
 import com.example.androiddevagent.settings.SettingsRepository
-import com.example.androiddevagent.agent.LLMClient
 import com.example.androiddevagent.utils.RateLimiter
 import dagger.Module
 import dagger.Provides
@@ -27,7 +26,7 @@ import okhttp3.OkHttpClient
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
+    
     @Provides
     @Singleton
     fun provideSettingsDataStore(
@@ -64,17 +63,11 @@ object AppModule {
     ): LLMProvider {
         return LLMProviderImpl(settingsRepository, llmClient)
     }
-
+    
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .callTimeout(180, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
+    fun provideAndroidDevAgent(llmProvider: LLMProvider): AndroidDevAgent {
+        return AndroidDevAgent(llmProvider)
     }
 
     @Provides
@@ -85,14 +78,14 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideLLMClient(okHttpClient: OkHttpClient): LLMClient {
-        return LLMClient(okHttpClient)
+    fun provideProjectDatabase(@ApplicationContext context: Context): ProjectDatabase {
+        return ProjectDatabase.getDatabase(context)
     }
-
+    
     @Provides
     @Singleton
-    fun provideRateLimiter(): RateLimiter {
-        return RateLimiter()
+    fun provideProjectDao(database: ProjectDatabase): ProjectDao {
+        return database.projectDao()
     }
 
     @Provides

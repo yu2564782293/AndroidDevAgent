@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master, trae/solo-agent-uNtcW8 ]
+    branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -21,35 +21,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android Build Tools and Platform
-        run: |
-          sdkmanager "build-tools;34.0.0"
-          sdkmanager "platforms;android-34"
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          validate-wrappers: false
-
-      - name: Create local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.txt
-
-      - name: Upload build output on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: build_output.txt
-          retention-days: 7
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

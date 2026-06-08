@@ -110,7 +110,6 @@ fun DebugScreen(
                     .weight(1f),
                 colors = CardDefaults.cardColors(
                     containerColor = DevAgentTheme.colors.aiResponseContainer
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 StreamingMarkdownText(
