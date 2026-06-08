@@ -3,12 +3,72 @@
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
-    
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.openai.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <pin-set expiration="2028-12-31">
+            <pin digest="SHA-256">9g+mtyVAhL3wQl0JVOKDKS5NZtYWty5pQuLjWkSlTCU=</pin>
+            <pin digest="SHA-256">kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=</pin>
+            <pin digest="SHA-256">mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.deepseek.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <pin-set expiration="2028-12-31">
+            <pin digest="SHA-256">DR0Gpd4Pbm6uwcjbOXvXkJ+RpBGTI0Fk3zXyJFx7tIc=</pin>
+            <pin digest="SHA-256">G9LNNAql897egYsabashkzUCTEJkWBzgoEtk8X/678c=</pin>
+            <pin digest="SHA-256">++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">dashscope.aliyuncs.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <pin-set expiration="2028-12-31">
+            <pin digest="SHA-256">WZVJFj4+3elgfAAI/zW+L9mKCgh+6gck7f6zYoUC0Yg=</pin>
+            <pin digest="SHA-256">nZ4QsWxivBcuuFkI8dXgfa0Pb2o1sjZ8hKx6h+729xw=</pin>
+            <pin digest="SHA-256">rn+WLLnmp9v3uDP7GPqbcaiRdd+UnCMrap73yz3yu/w=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.moonshot.cn</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <pin-set expiration="2028-12-31">
+            <pin digest="SHA-256">kPjMPOLocq+5yBiG1tDVmTqsthmK8BKarCJvdXglzis=</pin>
+            <pin digest="SHA-256">SDG5orEv8iX6MNenIAxa8nQFNpROB/6+llsZdXHZNqs=</pin>
+            <pin digest="SHA-256">i7WTqTvh0OioIruIfFR4kMPnBqrS2rdiVPl/s2uC/CY=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">open.bigmodel.cn</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <pin-set expiration="2028-12-31">
+            <pin digest="SHA-256">efpviN4CHX6YeOqbLWsBTvnJqjULfZE/j9OAUrm/qH0=</pin>
+            <pin digest="SHA-256">X4AGLwdqSLcL//rYNWWFtfT1CnCt94N7jSHB6cabFBU=</pin>
+            <pin digest="SHA-256">ViiHLiRf5mFIuAut6snED2JS5kL6lZWuzks+ili4/UY=</pin>
+        </pin-set>
     </domain-config>
 </network-security-config>
